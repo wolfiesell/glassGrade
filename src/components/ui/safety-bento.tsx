@@ -12,19 +12,28 @@ import {
   type SafetySignal,
 } from '@/data/mockRecipient'
 
+export type SafetySection =
+  | 'overview'
+  | 'signals'
+  | 'reputation'
+  | 'activity'
+  | 'lookup'
+
 export interface SafetyBentoProps {
   report: RecipientReport
   onReportChange?: (report: RecipientReport) => void
   title?: string
   subtitle?: string
+  embedded?: boolean
+  section?: SafetySection
   className?: string
   style?: React.CSSProperties
 }
 
 const LEVEL_COLOR: Record<RiskLevel, string> = {
   danger: '#F87171',
-  caution: '#FBBF24',
-  safe: '#A7F3D0',
+  caution: '#C4B5FD',
+  safe: '#A1A1AA',
 }
 
 const LEVEL_LABEL: Record<RiskLevel, string> = {
@@ -33,7 +42,6 @@ const LEVEL_LABEL: Record<RiskLevel, string> = {
   safe: 'Clear',
 }
 
-/** Higher = more important for spotting scam / dangerous accounts. */
 const SCAM_PRIORITY: Record<string, number> = {
   blacklist: 100,
   creation: 90,
@@ -55,14 +63,9 @@ function sortByScamImportance(signals: SafetySignal[]) {
   return [...signals].sort((a, b) => scamRankScore(b) - scamRankScore(a))
 }
 
-/**
- * Consistent spans that always pack to 12 cols.
- * Top 2 ranks → 6+6. Remaining ranks split evenly across the row.
- */
 function signalSpan(rankIndex: number, total: number) {
   if (total <= 2) return 'col-span-12 sm:col-span-6'
   if (rankIndex <= 1) return 'col-span-12 sm:col-span-6'
-
   const rest = total - 2
   if (rest === 1) return 'col-span-12'
   if (rest === 2) return 'col-span-12 sm:col-span-6'
@@ -75,13 +78,14 @@ function signalHeight(rankIndex: number, open: boolean) {
   return rankIndex <= 1 ? 'h-[180px]' : 'h-[152px]'
 }
 
+/** Purple / gray / black gradients only. */
 const GRADS = [
-  { top: '#d8b4fe', base: '#6d28d9', bottom: '#a78bfa', core: '#1a0533' },
-  { top: '#e9d5ff', base: '#7c3aed', bottom: '#a78bfa', core: '#1e0a3c' },
-  { top: '#ffb3d6', base: '#a21caf', bottom: '#e879f9', core: '#3b0764' },
-  { top: '#f6bf96', base: '#c2683a', bottom: '#dc8a5c', core: '#1d0b05' },
-  { top: '#a6e8c8', base: '#36956f', bottom: '#58b58c', core: '#061d15' },
+  { top: '#c4b5fd', base: '#5b21b6', bottom: '#8b5cf6', core: '#1a0533' },
+  { top: '#ddd6fe', base: '#6d28d9', bottom: '#a78bfa', core: '#1e0a3c' },
+  { top: '#a78bfa', base: '#4c1d95', bottom: '#7c3aed', core: '#14042a' },
   { top: '#9a9aa8', base: '#3a3a44', bottom: '#55555f', core: '#060608' },
+  { top: '#b8b8c0', base: '#2e2e36', bottom: '#4a4a54', core: '#0a0a0c' },
+  { top: '#7c7c88', base: '#1f1f24', bottom: '#3a3a42', core: '#050506' },
 ]
 
 function smoothPath(points: [number, number][], move = true) {
@@ -164,7 +168,7 @@ function AddressSearch({
   }
 
   return (
-    <form onSubmit={submit} className="w-full max-w-md shrink-0">
+    <form onSubmit={submit} className="w-full shrink-0">
       <div
         className={cn(
           'flex h-11 items-center gap-2 rounded-2xl border bg-white/[0.06] px-3 transition-colors',
@@ -230,7 +234,6 @@ function ScoreHero({ report }: { report: RecipientReport }) {
   const Y = (v: number) =>
     pad + (1 - (v - mn) / (mx - mn || 1)) * (Hh - pad * 2)
   const line = smoothPath(history.map((h, i) => [X(i), Y(h.score)]))
-  const area = `${line}L${X(history.length - 1)},${Hh}L${X(0)},${Hh}Z`
   const stroke =
     report.overallLevel === 'danger' ? LEVEL_COLOR.danger : '#c4b5fd'
 
@@ -267,7 +270,7 @@ function ScoreHero({ report }: { report: RecipientReport }) {
           </span>
         </div>
 
-        <h2 className="mt-3 max-w-xl text-[20px] font-semibold tracking-[-0.03em] leading-snug sm:text-[22px]">
+        <h2 className="mt-3 text-[20px] font-semibold tracking-[-0.03em] leading-snug sm:text-[22px]">
           {report.verdict}
         </h2>
         <p className="mt-1.5 max-w-lg text-[13px] leading-relaxed text-white/55">
@@ -287,7 +290,10 @@ function ScoreHero({ report }: { report: RecipientReport }) {
               <stop offset="1" stopColor="#fff" stopOpacity="0" />
             </linearGradient>
           </defs>
-          <path d={area} fill="url(#scoreFill)" />
+          <path
+            d={`${line}L${X(history.length - 1)},${Hh}L${X(0)},${Hh}Z`}
+            fill="url(#scoreFill)"
+          />
           <path
             d={line}
             fill="none"
@@ -342,7 +348,7 @@ function AccountCard({ report }: { report: RecipientReport }) {
             className={cn(
               'rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold',
               recipient.verified
-                ? 'bg-black/50 text-[#a7f3d0]'
+                ? 'bg-black/50 text-[#c4b5fd]'
                 : 'bg-black/50 text-[#f87171]',
             )}
           >
@@ -453,14 +459,21 @@ function SignalTile({
   )
 }
 
-function ReputationCard({ hits }: { hits: BlacklistHit[] }) {
+function ReputationCard({
+  hits,
+  fullWidth = false,
+}: {
+  hits: BlacklistHit[]
+  fullWidth?: boolean
+}) {
   const flagged = hits.some((h) => h.status === 'flagged')
   const [openSource, setOpenSource] = React.useState<string | null>(null)
 
   return (
     <section
       className={cn(
-        'relative col-span-12 h-[300px] overflow-hidden rounded-[24px] border border-white/12 bg-white/[0.06] backdrop-blur-[20px] lg:col-span-6',
+        'relative col-span-12 h-[300px] overflow-hidden rounded-[24px] border border-white/12 bg-white/[0.06] backdrop-blur-[20px]',
+        fullWidth ? 'lg:col-span-12' : 'lg:col-span-6',
         flagged && 'ring-1 ring-[#F87171]/35',
       )}
     >
@@ -521,7 +534,13 @@ function ReputationCard({ hits }: { hits: BlacklistHit[] }) {
   )
 }
 
-function ActivityCard({ report }: { report: RecipientReport }) {
+function ActivityCard({
+  report,
+  fullWidth = false,
+}: {
+  report: RecipientReport
+  fullWidth?: boolean
+}) {
   const { activity } = report
   const danger = activity.avgTxPerDay > 30
   const vals = activity.dailyOutbound
@@ -529,8 +548,13 @@ function ActivityCard({ report }: { report: RecipientReport }) {
   const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
   return (
-    <section className="relative col-span-12 h-[300px] overflow-hidden rounded-[24px] sm:col-span-6 lg:col-span-3">
-      <GradientBg {...GRADS[4]} />
+    <section
+      className={cn(
+        'relative col-span-12 h-[300px] overflow-hidden rounded-[24px]',
+        fullWidth ? 'sm:col-span-6 lg:col-span-6' : 'sm:col-span-6 lg:col-span-3',
+      )}
+    >
+      <GradientBg {...GRADS[3]} />
       <div className="absolute inset-0 z-[2] flex flex-col p-5">
         <div className="flex items-center justify-between">
           <div className="text-[16px] font-semibold tracking-[-0.02em]">Activity</div>
@@ -572,17 +596,26 @@ function ActivityCard({ report }: { report: RecipientReport }) {
   )
 }
 
-function FlowCard({ report }: { report: RecipientReport }) {
+function FlowCard({
+  report,
+  fullWidth = false,
+}: {
+  report: RecipientReport
+  fullWidth?: boolean
+}) {
   const { activity } = report
   const outboundHeavy = activity.outboundShare >= 70
   return (
-    <section className="relative col-span-12 h-[300px] overflow-hidden rounded-[24px] sm:col-span-6 lg:col-span-3">
-      <GradientBg {...GRADS[3]} />
+    <section
+      className={cn(
+        'relative col-span-12 h-[300px] overflow-hidden rounded-[24px]',
+        fullWidth ? 'sm:col-span-6 lg:col-span-6' : 'sm:col-span-6 lg:col-span-3',
+      )}
+    >
+      <GradientBg {...GRADS[4]} />
       <div className="relative z-[2] flex h-full flex-col p-5">
         <div className="text-[16px] font-semibold tracking-[-0.02em]">Fund flow</div>
-        <div className="mt-1 text-[12px] font-medium text-white/50">
-          In vs out
-        </div>
+        <div className="mt-1 text-[12px] font-medium text-white/50">In vs out</div>
         <div className="mt-auto space-y-5 pb-1">
           {(
             [
@@ -619,6 +652,8 @@ export function SafetyBento({
   onReportChange,
   title = 'GlassGrade',
   subtitle = 'Opened from Ledger · XRPL clear-sign review',
+  embedded = false,
+  section = 'overview',
   className,
   style,
 }: SafetyBentoProps) {
@@ -641,53 +676,86 @@ export function SafetyBento({
   }
 
   const ranked = sortByScamImportance(report.signals)
+  const showHero = section === 'overview' || section === 'lookup'
+  const showAccount = section === 'overview' || section === 'lookup'
+  const showSignals = section === 'overview' || section === 'signals'
+  const showReputation = section === 'overview' || section === 'reputation'
+  const showActivity = section === 'overview' || section === 'activity'
+  const showSearchBar =
+    !embedded || section === 'overview' || section === 'lookup'
 
   return (
     <div className={cn('w-full text-white antialiased', className)} style={style}>
-      <div className="relative rounded-[28px] bg-black p-5 text-white sm:p-7">
-        <header className="mb-6 flex flex-col gap-5 lg:mb-8 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <h1 className="m-0">
-              <img
-                src="/glassgrade-logo.png"
-                alt={title}
-                className="h-8 w-auto sm:h-9"
-              />
-            </h1>
-            <p className="mt-2 text-[13px] text-white/40">
-              {report.source === 'search'
-                ? 'Manual address lookup · no holder name'
-                : subtitle}
-            </p>
+      <div className={cn('relative text-white', embedded ? 'p-0' : 'rounded-[28px] bg-black p-5 sm:p-7')}>
+        {!embedded ? (
+          <header className="mb-6 flex flex-col gap-5 lg:mb-8 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <h1 className="m-0">
+                <img
+                  src="/glassgrade-logo.png"
+                  alt={title}
+                  className="h-8 w-auto sm:h-9"
+                />
+              </h1>
+              <p className="mt-2 text-[13px] text-white/40">
+                {report.source === 'search'
+                  ? 'Manual address lookup · no holder name'
+                  : subtitle}
+              </p>
+            </div>
+            <AddressSearch
+              canReset={report.source === 'search'}
+              onLookup={applyReport}
+              onReset={() => applyReport(ledgerBaseline.current)}
+            />
+          </header>
+        ) : showSearchBar ? (
+          <div className="mb-6 w-full">
+            <AddressSearch
+              canReset={report.source === 'search'}
+              onLookup={applyReport}
+              onReset={() => applyReport(ledgerBaseline.current)}
+            />
           </div>
-          <AddressSearch
-            canReset={report.source === 'search'}
-            onLookup={applyReport}
-            onReset={() => applyReport(ledgerBaseline.current)}
-          />
-        </header>
+        ) : null}
 
         <div className="grid grid-cols-12 gap-4 sm:gap-5">
-          <ScoreHero report={report} />
-          <AccountCard report={report} />
+          {showHero ? <ScoreHero report={report} /> : null}
+          {showAccount ? <AccountCard report={report} /> : null}
 
-          {ranked.map((signal, index) => (
-            <SignalTile
-              key={signal.id}
-              signal={signal}
-              index={index}
-              rankIndex={index}
-              total={ranked.length}
-              open={openSignalId === signal.id}
-              onToggle={() =>
-                setOpenSignalId((id) => (id === signal.id ? null : signal.id))
-              }
+          {showSignals
+            ? ranked.map((signal, index) => (
+                <SignalTile
+                  key={signal.id}
+                  signal={signal}
+                  index={index}
+                  rankIndex={index}
+                  total={ranked.length}
+                  open={openSignalId === signal.id}
+                  onToggle={() =>
+                    setOpenSignalId((id) =>
+                      id === signal.id ? null : signal.id,
+                    )
+                  }
+                />
+              ))
+            : null}
+
+          {showReputation ? (
+            <ReputationCard
+              hits={report.blacklists}
+              fullWidth={section === 'reputation'}
             />
-          ))}
-
-          <ReputationCard hits={report.blacklists} />
-          <ActivityCard report={report} />
-          <FlowCard report={report} />
+          ) : null}
+          {showActivity ? (
+            <>
+              <ActivityCard
+                report={report}
+                fullWidth={section === 'activity'}
+              />
+              <FlowCard report={report} fullWidth={section === 'activity'} />
+            </>
+          ) : null}
         </div>
       </div>
     </div>

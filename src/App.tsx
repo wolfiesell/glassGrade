@@ -1,8 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { SafetyBento } from '@/components/ui/safety-bento'
-import { mockReport } from '@/data/mockRecipient'
+import { GlassGradeDashboard } from '@/components/ui/dashboard-with-collapsible-sidebar'
 
 function useFonts() {
   React.useEffect(() => {
@@ -19,15 +18,5 @@ function useFonts() {
 
 export default function App() {
   useFonts()
-
-  return (
-    <div className="min-h-screen w-full bg-black px-5 py-8 sm:px-8 sm:py-10">
-      <SafetyBento
-        className="mx-auto max-w-[1320px]"
-        report={mockReport}
-        title="glassgrade"
-        subtitle="Opened from Ledger · XRPL clear-sign review"
-      />
-    </div>
-  )
+  return <GlassGradeDashboard />
 }
