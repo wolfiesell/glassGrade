@@ -7,11 +7,11 @@
 
 ## 0. Project summary
 
-A browser-only web app that explains, in plain language, how risky an XRPL payment is **before the user signs it** on a hardware wallet.
+A browser-only web app that explains, in plain language, how risky an XRPL payment is **before the user signs it** on a LEDGER hardware wallet.
 
 Two demo surfaces:
 
-1. **Device emulator** (`/`): a custom-coded, Ledger-style screen mockup. It is NOT a real Ledger emulation. It shows a pending transaction and a QR code (NFC is a stretch goal).
+1. **Device emulator** (`/`): a custom-coded, Ledger-style screen mockup. It is NOT a real Ledger emulation. It shows a pending transaction and a QR code. The QR code goes to the analysis page described in the second item.(NFC to get to analysis page is a stretch goal).
 2. **Analysis page** (`/#/a/<payload>`): opened by scanning the QR. Fetches public XRPL data, computes a deterministic risk score, shows an AI-written plain-English summary and a verdict.
 
 Hard constraints:
