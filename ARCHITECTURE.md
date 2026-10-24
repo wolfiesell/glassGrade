@@ -11,7 +11,7 @@ A browser-only web app that explains, in plain language, how risky an XRPL payme
 
 Two demo surfaces:
 
-1. **Device emulator** (`/`): a custom-coded, Ledger-style screen mockup. It is NOT a real Ledger emulation. It shows a pending transaction and a QR code. The QR code goes to the analysis page described in the second item.(NFC to get to analysis page is a stretch goal).
+1. **Device emulator** (`/`): a custom-coded, Ledger-style screen mockup. It is NOT a real Ledger emulation. It shows a pending transaction and a QR code. The QR code goes to the analysis page described in the second item.(NFC to get to analysis page is a stretch goal). The plan has changed, and we are currently working on using the real official emulator for the ledger wallet. 
 2. **Analysis page** (`/#/a/<payload>`): opened by scanning the QR. Fetches public XRPL data, computes a deterministic risk score, shows an AI-written plain-English summary and a verdict.
 
 Hard constraints:
@@ -373,9 +373,12 @@ Fixtures are captured from live responses once, then committed. Agents: never fa
 - [ ] QuickNode XRPL endpoint: does it support the calls above, and what are its rate limits? Use a throwaway key.
 - [ ] Blacklist sources: which public lists will we cite, and are they free to use?
 - [ ] Confirm exact `account_tx` response fields and reserve fields against xrpl.org before `xrpl-data` is merged.
-- Dependencies added (wallet demo): react 19.1.1, react-dom 19.1.1; dev: @types/react 19.1.10, @types/react-dom 19.1.9, typescript 5.9.2, vite 7.3.7. Exact versions pinned in package.json.
+- Dependencies added: _(list here as they are added)_
 
 ---
+
+## 14. Art for Front End
+1. Shariva needs to push the designs she made for the front end. Jag will use that to create the front end design. 
 
 ## 14. Definition of done (for the demo)
 
