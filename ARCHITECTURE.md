@@ -373,7 +373,7 @@ Fixtures are captured from live responses once, then committed. Agents: never fa
 - [ ] QuickNode XRPL endpoint: does it support the calls above, and what are its rate limits? Use a throwaway key.
 - [ ] Blacklist sources: which public lists will we cite, and are they free to use?
 - [ ] Confirm exact `account_tx` response fields and reserve fields against xrpl.org before `xrpl-data` is merged.
-- Dependencies added: _(list here as they are added)_
+- Dependencies added (wallet demo): react 19.1.1, react-dom 19.1.1; dev: @types/react 19.1.10, @types/react-dom 19.1.9, typescript 5.9.2, vite 7.3.7. Exact versions pinned in package.json.
 
 ---
 
