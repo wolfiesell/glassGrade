@@ -1,5 +1,7 @@
 # glassGrade — XRPL Commons Hackathon
 
+![GlassGrade architecture flow](docs/architecture-flow.webp)
+
 A browser-only transaction safety demo. The first component is an interactive Ledger-style wallet mock.
 
 ## Run locally
