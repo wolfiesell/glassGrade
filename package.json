@@ -6,24 +6,43 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json",
+    "dev:frontend": "vite --host 127.0.0.1",
+    "build": "npm run build:api && npm run build:frontend",
+    "build:api": "tsc -p tsconfig.json",
+    "build:frontend": "tsc -b tsconfig.app.json tsconfig.node.json && vite build",
+    "lint": "oxlint",
     "start": "node dist/server.js",
     "test": "tsx --test src/rules.test.ts src/ledger-wallet.test.ts",
     "jev:sample": "tsx src/jev-sample.ts"
   },
   "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.61.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "@system-one-ai/adapter-system-one": "0.7.0",
     "@system-one-ai/core": "0.8.0",
     "@system-one-ai/transport-fetch": "0.8.0",
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
+    "tailwind-merge": "^3.7.0",
+    "three": "^0.186.1",
     "xrpl": "5.3.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
     "@types/node": "^22.19.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.2",
+    "oxlint": "^1.88.0",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "typescript": "~6.0.3",
+    "vite": "^8.3.4"
   }
 }

@@ -5,5 +5,15 @@
     "esModuleInterop": true, "skipLibCheck": true, "forceConsistentCasingInFileNames": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/jev.ts",
+    "src/jev-sample.ts",
+    "src/ledger-wallet.ts",
+    "src/ledger-wallet.test.ts",
+    "src/rules.ts",
+    "src/rules.test.ts",
+    "src/server.ts",
+    "src/types.ts",
+    "src/xrpl.ts"
+  ]
 }
