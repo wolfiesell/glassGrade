@@ -1,5 +1,9 @@
 # GlassGrade
 
+
+<img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/1e2387f4-df5d-4902-9d3c-9dd43e818389" />
+
+
 XRPL Commons Hackathon — browser-only transaction safety demo.
 
 `ARCHITECTURE.md` is the full application plan (device → QR → analysis pipeline).
