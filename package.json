@@ -1,0 +1,29 @@
+{
+  "name": "intentpay-transaction-intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "tsx --test src/rules.test.ts src/ledger-wallet.test.ts",
+    "jev:sample": "tsx src/jev-sample.ts"
+  },
+  "dependencies": {
+    "@system-one-ai/adapter-system-one": "0.7.0",
+    "@system-one-ai/core": "0.8.0",
+    "@system-one-ai/transport-fetch": "0.8.0",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "xrpl": "5.3.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.19.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

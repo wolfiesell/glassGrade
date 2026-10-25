@@ -1,2 +1,73 @@
-\# glassGrade -- XRPL Commons Hack-a-Thon Submission
+# IntentPay transaction intelligence
 
+Backend MVP for analyzing proposed XRPL Testnet payments before the caller signs them. It does not hold keys, sign, submit, or authorize a payment. The deterministic rules engine owns `BLOCK` outcomes; Jev provides structured interpretation only.
+
+## Setup
+
+Requires Node.js 20+ (22+ recommended) and npm.
+
+```sh
+npm install
+cp .env.example .env
+# Set SYSTEM_ONE_API_KEY and SYSTEM_ONE_MODEL to an exact model name from the System One model directory.
+npm run dev
+```
+
+The hosted Jev SDK versions are pinned to the current official package set: core 0.8.0, System One adapter 0.7.0, and Fetch transport 0.8.0. When Jev credentials are absent, analysis still runs and returns `jev: null`; with credentials configured, calls are billable. To make one sample Jev decision and print its measured inference latency, run `npm run jev:sample` after configuring credentials. The sample uses a fabricated XRPL Testnet-style payment context and never signs or submits it.
+
+## API
+
+`POST /analyze-transaction` accepts a proposed payment and optional intent, budget, and application records. XRP `amount` is given in drops, as required by XRPL transaction JSON; issued asset amounts use `{ "currency", "issuer", "value" }`.
+
+```json
+{
+  "payment": {
+    "account": "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe",
+    "destination": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "amount": "25000000",
+    "invoiceId": "invoice-42"
+  },
+  "intent": {
+    "destination": "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+    "amount": "25000000",
+    "invoiceId": "invoice-42"
+  },
+  "budget": { "limit": 100, "spent": 40, "currency": "XRP" },
+  "applicationRecords": []
+}
+```
+
+Response includes historical metrics, `rules.status` (`PASS`, `BLOCK`, or `INSUFFICIENT_DATA`), Jev's category/clarity/concern/review interpretation, a latency measurement, and a top-level decision. The top-level `ELIGIBLE_FOR_SIGNING` means only that the supplied deterministic checks passed and Jev did not request extra contextual review. It is not approval or signing. `BLOCKED` cannot be changed by Jev. Missing original intent or budget leaves the rules insufficient unless the request carries a complete authorization source.
+
+`requiredFields` may name `invoiceId` and/or `taskId`; missing values produce a hard rule block. Matching invoice/task identifiers in `applicationRecords` are blocked as duplicates. Supply records from the application system; the service does not persist application state.
+
+## XRPL history and limits
+
+The service reads validated `account_tx` history for the sender and recipient from the configured Testnet WebSocket. A capped or paginated history is marked incomplete; recipient novelty, counterparty counts, and history-derived conclusions remain unknown when completeness cannot be established. XRPL failures return HTTP 502 with a request ID. Issued assets are compared by currency and issuer; raw amount comparisons use decimal strings to avoid floating point comparisons in rules. Historical numeric metrics are approximate JavaScript numbers.
+
+## Ledger Wallet CLI connector
+
+The local connector runs the configured Ledger Wallet CLI executable (by default
+`C:\Users\HEET\ledger-live\apps\wallet-cli\dist\windows-x64\cli.exe`) directly with shell execution disabled. It does not copy Ledger Live code, handle recovery phrases, or access private keys. The executable must be built separately; a missing executable is reported as an error.
+
+The connector is Testnet-only:
+
+- `POST /ledger/xrp/discover` runs `account discover --network ripple:testnet --output json`.
+- `POST /ledger/xrp/review` runs the existing XRPL analysis and JEV advisory routing for the exact proposal without signing or broadcasting.
+- `POST /ledger/xrp/dry-run` validates a proposal and runs `send ... --dry-run --output json`; it does not sign or broadcast.
+- `POST /ledger/xrp/send` is the separate action for a real send. The Ledger device must physically approve the transaction.
+
+Proposal JSON is `{ "network": "xrp:testnet", "sender": "<classic address>", "account": "<discovered session label>", "recipient": "<classic address>", "amount": "<XRP decimal>", "destinationTag": 42 }`. `amount` supports up to six decimal places. The response identifies the Ledger Wallet CLI/XRPL Testnet data source and returns the CLI transaction status/hash when supplied. JEV's risk explanation remains separate from these XRPL facts and does not guarantee that an address is trustworthy.
+
+Recommended flow: discover accounts, call `/ledger/xrp/review`, show the returned deterministic rules and JEV advisory result, optionally call `/ledger/xrp/dry-run`, then require a separate user action for `/ledger/xrp/send`. A review result never authorizes or signs a transaction.
+
+Application records and budget are caller supplied and are not persisted. An XRPL lookup is not a simulation of future execution and may not reflect the account's state at the time of later signing.
+
+## Development
+
+```sh
+npm test
+npm run build
+```
+
+The unit tests cover XRP drop conversion, missing data, required fields, duplicate identifiers, recipient mismatch, and budget enforcement. The `jev:sample` command reports the measured inference time for a real SDK request; no latency target is promised.
