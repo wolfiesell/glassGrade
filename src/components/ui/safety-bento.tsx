@@ -30,15 +30,39 @@ export interface SafetyBentoProps {
   style?: React.CSSProperties
 }
 
+const ACCENT = '#8B5CF6'
+const ACCENT_SOFT = '#A78BFA'
+
 const LEVEL_COLOR: Record<RiskLevel, string> = {
   danger: '#F87171',
-  caution: '#C4B5FD',
+  caution: ACCENT_SOFT,
   safe: '#A1A1AA',
 }
 
-const LEVEL_LABEL: Record<RiskLevel, string> = {
-  danger: 'Warning',
-  caution: 'Caution',
+/** Shared tile sizes — variety via orientation, not random heights. */
+const H_HERO = 'h-[280px]'
+const H_METRIC = 'h-[148px]'
+const RADIUS = 'rounded-2xl'
+/** Opaque panel fills with slight unique purple gradients. */
+const PANEL_GRADS = [
+  'linear-gradient(152deg, #2c2542 0%, #18151f 52%, #121018 100%)',
+  'linear-gradient(168deg, #32284a 0%, #16131c 48%, #100e16 100%)',
+  'linear-gradient(142deg, #292240 0%, #1a1624 55%, #12101a 100%)',
+  'linear-gradient(160deg, #2e2650 0%, #17141f 50%, #0f0d14 100%)',
+  'linear-gradient(148deg, #2a2344 0%, #19151f 46%, #111018 100%)',
+  'linear-gradient(175deg, #31274c 0%, #15131c 58%, #0e0c14 100%)',
+]
+
+/** Slightly lifted fills — for cards sitting on the bright mist. */
+const RAISED_GRADS = [
+  'linear-gradient(155deg, #3a3158 0%, #221c32 50%, #181422 100%)',
+  'linear-gradient(165deg, #3f3560 0%, #241e36 52%, #1a1526 100%)',
+  'linear-gradient(148deg, #383054 0%, #201a30 48%, #16121f 100%)',
+]
+
+const LEVEL_MARK: Record<RiskLevel, string> = {
+  danger: 'Flagged',
+  caution: 'Watch',
   safe: 'Clear',
 }
 
@@ -63,31 +87,6 @@ function sortByScamImportance(signals: SafetySignal[]) {
   return [...signals].sort((a, b) => scamRankScore(b) - scamRankScore(a))
 }
 
-function signalSpan(rankIndex: number, total: number) {
-  if (total <= 2) return 'col-span-12 sm:col-span-6'
-  if (rankIndex <= 1) return 'col-span-12 sm:col-span-6'
-  const rest = total - 2
-  if (rest === 1) return 'col-span-12'
-  if (rest === 2) return 'col-span-12 sm:col-span-6'
-  if (rest === 3) return 'col-span-12 sm:col-span-4'
-  return 'col-span-6 sm:col-span-3'
-}
-
-function signalHeight(rankIndex: number, open: boolean) {
-  if (open) return rankIndex <= 1 ? 'min-h-[240px] h-auto' : 'min-h-[200px] h-auto'
-  return rankIndex <= 1 ? 'h-[180px]' : 'h-[152px]'
-}
-
-/** Purple / gray / black gradients only. */
-const GRADS = [
-  { top: '#c4b5fd', base: '#5b21b6', bottom: '#8b5cf6', core: '#1a0533' },
-  { top: '#ddd6fe', base: '#6d28d9', bottom: '#a78bfa', core: '#1e0a3c' },
-  { top: '#a78bfa', base: '#4c1d95', bottom: '#7c3aed', core: '#14042a' },
-  { top: '#9a9aa8', base: '#3a3a44', bottom: '#55555f', core: '#060608' },
-  { top: '#b8b8c0', base: '#2e2e36', bottom: '#4a4a54', core: '#0a0a0c' },
-  { top: '#7c7c88', base: '#1f1f24', bottom: '#3a3a42', core: '#050506' },
-]
-
 function smoothPath(points: [number, number][], move = true) {
   if (!points.length) return ''
   let d = `${move ? 'M' : 'L'}${points[0][0]},${points[0][1]}`
@@ -102,39 +101,48 @@ function smoothPath(points: [number, number][], move = true) {
   return d
 }
 
-function Rim() {
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 z-[9] rounded-[inherit] shadow-[inset_0_1px_0_rgba(255,255,255,.2),inset_0_0_0_1px_rgba(255,255,255,.06)]"
-      aria-hidden
-    />
-  )
-}
-
-function GradientBg({
-  top,
-  base,
-  bottom,
-  core,
+/**
+ * Opaque purple-tinted panels with a slight unique gradient each.
+ * `accent` = violet fill; never a red wash.
+ */
+function CardShell({
+  variant = 'panel',
+  className,
+  children,
+  as: Tag = 'section',
+  ...rest
 }: {
-  top: string
-  base: string
-  bottom: string
-  core: string
-}) {
+  variant?: 'panel' | 'panelAlt' | 'accent' | 'raised'
+  className?: string
+  children: React.ReactNode
+  as?: 'section' | 'button' | 'div'
+} & React.HTMLAttributes<HTMLElement> & { type?: 'button' | 'submit' }) {
+  const isAccent = variant === 'accent'
+  const isRaised = variant === 'raised'
+  const panelGrad = React.useRef(
+    (isRaised ? RAISED_GRADS : PANEL_GRADS)[
+      Math.floor(Math.random() * (isRaised ? RAISED_GRADS.length : PANEL_GRADS.length))
+    ],
+  ).current
+
   return (
-    <>
-      <div
-        className="absolute inset-0"
-        style={{
-          background: `linear-gradient(180deg, ${top} 0%, ${base} 36%, ${base} 74%, ${bottom} 100%)`,
-        }}
-      />
-      <div
-        className="absolute top-[16%] right-[10%] bottom-[-6%] left-[10%] rounded-[90px] blur-[60px]"
-        style={{ background: core }}
-      />
-    </>
+    <Tag
+      className={cn('relative overflow-hidden', RADIUS, className)}
+      style={{
+        background: isAccent
+          ? `linear-gradient(145deg, #9F7AEA 0%, #8B5CF6 45%, #5B21B6 100%)`
+          : panelGrad,
+        boxShadow: isAccent
+          ? `0 4px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.28), inset 1px 0 0 rgba(196,181,253,.2), 0 0 0 1px rgba(196,181,253,.4)`
+          : isRaised
+            ? `0 10px 36px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.18), 0 0 0 1px rgba(255,255,255,.16)`
+            : `0 4px 28px rgba(0,0,0,.35), inset 0 1px 0 rgba(196,181,253,.16), inset 1px 0 0 rgba(255,255,255,.05), 0 0 0 1px rgba(255,255,255,.1)`,
+      }}
+      {...(rest as object)}
+    >
+      {!isAccent ? <div className="gg-card-grain" aria-hidden /> : null}
+      {children}
+    </Tag>
   )
 }
 
@@ -171,10 +179,10 @@ function AddressSearch({
     <form onSubmit={submit} className="w-full shrink-0">
       <div
         className={cn(
-          'flex h-11 items-center gap-2 rounded-2xl border bg-white/[0.06] px-3 transition-colors',
+          'flex h-11 items-center gap-2 rounded-2xl border bg-gradient-to-b from-white/[0.08] to-white/[0.02] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,.16),0_8px_24px_rgba(0,0,0,.25)] backdrop-blur-xl transition-colors',
           error
             ? 'border-[#F87171]/50'
-            : 'border-white/12 focus-within:border-[#c4b5fd]/55',
+            : 'border-white/[0.1] focus-within:border-[#8b5cf6]/50',
         )}
       >
         <Search className="h-4 w-4 shrink-0 text-white/40" aria-hidden />
@@ -206,7 +214,7 @@ function AddressSearch({
         ) : null}
         <button
           type="submit"
-          className="rounded-xl bg-[#c4b5fd] px-3 py-1.5 text-[12px] font-semibold text-[#0b0b0c] transition hover:bg-[#d4c8ff]"
+          className="rounded-xl bg-[#8b5cf6] px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[#9b6fff]"
         >
           Look up
         </button>
@@ -234,46 +242,51 @@ function ScoreHero({ report }: { report: RecipientReport }) {
   const Y = (v: number) =>
     pad + (1 - (v - mn) / (mx - mn || 1)) * (Hh - pad * 2)
   const line = smoothPath(history.map((h, i) => [X(i), Y(h.score)]))
-  const stroke =
-    report.overallLevel === 'danger' ? LEVEL_COLOR.danger : '#c4b5fd'
+  const danger = report.overallLevel === 'danger'
 
   return (
-    <section
-      className="relative col-span-12 h-[320px] overflow-hidden rounded-[24px] lg:col-span-8"
+    <CardShell
+      variant="accent"
+      className={cn('w-full', H_HERO)}
       aria-label="Safety grade"
     >
-      <GradientBg {...GRADS[0]} />
-      <div className="absolute inset-0 z-[2] flex flex-col p-6 sm:p-7">
+      <div className="absolute inset-0 z-[2] flex flex-col p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-[11px] font-semibold tracking-[0.06em] text-white/55 uppercase">
+            <div className="text-[11px] font-semibold tracking-[0.06em] text-white/65 uppercase">
               Safety grade
             </div>
             <div className="mt-1.5 flex items-end gap-3">
-              <span className="text-[56px] font-extralight leading-none tracking-[-0.05em]">
+              <span className="text-[52px] font-extralight leading-none tracking-[-0.05em]">
                 {report.grade}
               </span>
-              <span
-                className="pb-1.5 font-mono text-[13px] font-semibold"
-                style={{ color: stroke }}
-              >
+              <span className="pb-1.5 font-mono text-[13px] font-semibold text-white/90">
                 {report.overallScore}/100
               </span>
             </div>
           </div>
-          <span className="inline-flex h-6 items-center rounded-full bg-black/80 px-2.5 font-mono text-[11px] font-semibold text-white">
-            {report.overallLevel === 'danger'
-              ? 'High risk'
+          <span
+            className={cn(
+              'pt-1 text-[12px] font-medium tracking-wide',
+              danger
+                ? 'text-white/90'
+                : report.overallLevel === 'caution'
+                  ? 'text-white/75'
+                  : 'text-white/60',
+            )}
+          >
+            {danger
+              ? 'Do not sign yet'
               : report.overallLevel === 'caution'
-                ? 'Elevated'
-                : 'Safe'}
+                ? 'Review first'
+                : 'Looks fine'}
           </span>
         </div>
 
-        <h2 className="mt-3 text-[20px] font-semibold tracking-[-0.03em] leading-snug sm:text-[22px]">
+        <h2 className="mt-3 text-[18px] font-semibold tracking-[-0.03em] leading-snug sm:text-[20px]">
           {report.verdict}
         </h2>
-        <p className="mt-1.5 max-w-lg text-[13px] leading-relaxed text-white/55">
+        <p className="mt-1.5 max-w-lg text-[13px] leading-relaxed text-white/60">
           {report.verdictDetail}
         </p>
 
@@ -281,12 +294,12 @@ function ScoreHero({ report }: { report: RecipientReport }) {
           className="mt-auto block w-full"
           viewBox={`0 0 ${W} ${Hh}`}
           preserveAspectRatio="none"
-          style={{ height: 88 }}
+          style={{ height: 72 }}
           aria-hidden
         >
           <defs>
             <linearGradient id="scoreFill" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0" stopColor="#fff" stopOpacity="0.22" />
+              <stop offset="0" stopColor="#fff" stopOpacity="0.3" />
               <stop offset="1" stopColor="#fff" stopOpacity="0" />
             </linearGradient>
           </defs>
@@ -305,181 +318,195 @@ function ScoreHero({ report }: { report: RecipientReport }) {
             cx={X(history.length - 1)}
             cy={Y(history[history.length - 1].score)}
             r="4"
-            fill={stroke}
+            fill="#fff"
             stroke="rgba(0,0,0,.35)"
             strokeWidth="1"
           />
         </svg>
-        <div className="mt-1 text-[11px] font-medium text-white/35">
+        <div className="mt-1 text-[11px] font-medium text-white/45">
           Risk score · last 14 days
         </div>
       </div>
-      <Rim />
-    </section>
+    </CardShell>
   )
 }
 
-function AccountCard({ report }: { report: RecipientReport }) {
+function AccountCard({
+  report,
+  tall = false,
+}: {
+  report: RecipientReport
+  /** Stretch beside hero + metrics (Sapphire-style side rail). */
+  tall?: boolean
+}) {
   const { recipient, transaction } = report
   const isSearch = report.source === 'search'
 
   return (
-    <section className="relative col-span-12 h-[320px] overflow-hidden rounded-[24px] lg:col-span-4">
-      <GradientBg {...GRADS[5]} />
-      <div className="absolute inset-0 z-[2] flex flex-col p-6 sm:p-7">
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-[16px] font-semibold tracking-[-0.02em]">
+    <CardShell
+      variant="panel"
+      className={cn(
+        'flex w-full flex-col',
+        tall ? 'h-full min-h-[420px]' : cn(H_HERO, 'lg:max-w-none'),
+      )}
+    >
+      <div className="relative z-[2] flex h-full flex-col p-5 sm:p-6">
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="text-[15px] font-semibold tracking-[-0.02em]">
             {isSearch ? 'Looked-up account' : 'Recipient'}
           </div>
-          <span className="inline-flex h-6 items-center rounded-full bg-white/10 px-2.5 font-mono text-[11px] font-semibold">
-            {isSearch ? 'No holder name' : 'From Ledger'}
+          <span className="text-[12px] text-white/40">
+            {isSearch ? 'Manual lookup' : 'Via Ledger'}
           </span>
         </div>
 
-        <p className="mt-4 text-[14px] font-semibold">
+        <p className="mt-5 text-[14px] font-semibold">
           {recipient.displayName ?? 'No verified name'}
         </p>
-        <code className="mt-2 break-all rounded-xl bg-black/40 px-3 py-2 font-mono text-[11.5px] leading-relaxed text-white/75">
+        <code className="mt-2 break-all rounded-xl bg-black/30 px-3 py-2.5 font-mono text-[11.5px] leading-relaxed text-white/70">
           {recipient.address}
         </code>
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          <span
-            className={cn(
-              'rounded-full px-2.5 py-1 font-mono text-[11px] font-semibold',
-              recipient.verified
-                ? 'bg-black/50 text-[#c4b5fd]'
-                : 'bg-black/50 text-[#f87171]',
-            )}
-          >
+        <p className="mt-3 text-[12.5px] text-white/45">
+          <span className={recipient.verified ? 'text-[#c4b5fd]' : 'text-[#f87171]'}>
             {recipient.verified ? 'Verified' : 'Unverified'}
           </span>
-          <span className="rounded-full bg-black/50 px-2.5 py-1 font-mono text-[11px] text-white/70">
-            {recipient.ageDays}d old
-          </span>
-        </div>
+          <span className="text-white/25"> · </span>
+          <span>{recipient.ageDays} days old</span>
+        </p>
+
+        {tall ? (
+          <div className="mt-6 space-y-3 border-t border-white/[0.08] pt-5">
+            <div className="text-[11px] font-semibold tracking-[0.06em] text-white/40 uppercase">
+              Quick facts
+            </div>
+            <div className="flex justify-between text-[13px]">
+              <span className="text-white/45">First seen</span>
+              <span className="font-mono text-white/80">
+                {new Date(recipient.firstSeen).toLocaleDateString()}
+              </span>
+            </div>
+            <div className="flex justify-between text-[13px]">
+              <span className="text-white/45">Source</span>
+              <span className="font-mono text-white/80">
+                {isSearch ? 'Lookup' : 'Ledger'}
+              </span>
+            </div>
+          </div>
+        ) : null}
 
         {transaction ? (
-          <div className="mt-auto pt-3">
-            <div className="text-[11px] font-semibold tracking-[0.06em] text-white/50 uppercase">
+          <div className="mt-auto pt-5">
+            <div className="text-[11px] font-semibold tracking-[0.06em] text-white/40 uppercase">
               Signing now
             </div>
             <div className="mt-1 text-[28px] font-extralight tracking-[-0.04em] leading-none tabular-nums">
               {transaction.amountXrp.toLocaleString()}{' '}
-              <span className="text-[14px] text-white/50">{transaction.currency}</span>
+              <span className="text-[14px] text-white/45">{transaction.currency}</span>
             </div>
-            <div className="mt-2 inline-flex h-6 items-center rounded-full bg-black/80 px-2.5 font-mono text-[11px] font-semibold text-[#f87171]">
-              {transaction.percentOfSenderBalance}% of balance
-            </div>
+            <p className="mt-2 text-[12.5px] text-[#f87171]">
+              {transaction.percentOfSenderBalance}% of your balance
+            </p>
           </div>
         ) : (
-          <p className="mt-auto pt-3 text-[12.5px] leading-relaxed text-white/45">
+          <p className="mt-auto pt-5 text-[12.5px] leading-relaxed text-white/40">
             Manual lookup — no pending payment. Holder name is never shown for
             searched addresses.
           </p>
         )}
       </div>
-      <Rim />
-    </section>
+    </CardShell>
   )
 }
 
 function SignalTile({
   signal,
-  index,
   rankIndex,
-  total,
   open,
   onToggle,
+  className,
 }: {
   signal: SafetySignal
-  index: number
   rankIndex: number
-  total: number
   open: boolean
   onToggle: () => void
+  className?: string
 }) {
-  const grad = GRADS[index % GRADS.length]
-  const useGlass = signal.level === 'safe'
   const color = LEVEL_COLOR[signal.level]
-  const large = rankIndex <= 1
 
   return (
-    <button
+    <CardShell
+      as="button"
       type="button"
       onClick={onToggle}
       aria-expanded={open}
+      variant="panel"
       className={cn(
-        'relative flex overflow-hidden rounded-[24px] text-left transition',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c4b5fd]',
-        open && 'ring-1 ring-white/25',
-        signalSpan(rankIndex, total),
-        signalHeight(rankIndex, open),
-        useGlass && 'border border-white/12 bg-white/[0.06] backdrop-blur-[20px]',
+        'flex w-full text-left transition hover:brightness-110',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8b5cf6]',
+        open ? 'min-h-[148px] h-auto ring-1 ring-[#8b5cf6]/40' : H_METRIC,
+        className,
       )}
     >
-      {!useGlass ? <GradientBg {...grad} /> : null}
-      <div className="relative z-[2] flex w-full flex-col p-5 sm:p-6">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="shrink-0 font-mono text-[11px] font-semibold text-white/35">
-              #{rankIndex + 1}
-            </span>
-            <div className="truncate text-[11px] font-semibold tracking-[0.05em] text-white/55 uppercase">
-              {signal.label}
-            </div>
+      {/* Accent bar — purple, never a red wash */}
+      <div
+        className="absolute top-4 bottom-4 left-0 w-[3px] rounded-r-full"
+        style={{
+          background:
+            signal.level === 'danger'
+              ? LEVEL_COLOR.danger
+              : signal.level === 'caution'
+                ? ACCENT
+                : 'rgba(255,255,255,.2)',
+        }}
+      />
+      <div className="relative z-[2] flex w-full flex-col p-4 pl-5 sm:p-5 sm:pl-6">
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="truncate text-[12px] text-white/50">
+            <span className="text-white/30">{rankIndex + 1}. </span>
+            {signal.label}
           </div>
-          <span
-            className="inline-flex h-6 shrink-0 items-center rounded-full bg-black/80 px-2.5 font-mono text-[11px] font-semibold"
-            style={{ color }}
-          >
-            {LEVEL_LABEL[signal.level]}
+          <span className="shrink-0 text-[11px] font-medium" style={{ color }}>
+            {LEVEL_MARK[signal.level]}
           </span>
         </div>
-        <div
-          className={cn(
-            'mt-auto pt-4 font-extralight tracking-[-0.04em] leading-none tabular-nums text-white',
-            large ? 'text-[28px]' : 'text-[22px]',
-          )}
-        >
+        <div className="mt-auto pt-3 text-[20px] font-extralight tracking-[-0.04em] leading-none tabular-nums text-white">
           {signal.value}
         </div>
         {open ? (
-          <p className="mt-3 text-[12.5px] leading-relaxed text-white/70">
+          <p className="mt-3 text-[12px] leading-relaxed text-white/60">
             {signal.detail}
           </p>
         ) : (
-          <p className="mt-3 text-[11px] font-medium text-white/35">
-            Click for details
-          </p>
+          <p className="mt-2 text-[11px] text-white/30">Details</p>
         )}
       </div>
-      {!useGlass ? <Rim /> : null}
-    </button>
+    </CardShell>
   )
 }
 
 function ReputationCard({
   hits,
-  fullWidth = false,
+  className,
 }: {
   hits: BlacklistHit[]
-  fullWidth?: boolean
+  className?: string
 }) {
   const flagged = hits.some((h) => h.status === 'flagged')
   const [openSource, setOpenSource] = React.useState<string | null>(null)
 
   return (
-    <section
+    <CardShell
+      variant="panel"
       className={cn(
-        'relative col-span-12 h-[300px] overflow-hidden rounded-[24px] border border-white/12 bg-white/[0.06] backdrop-blur-[20px]',
-        fullWidth ? 'lg:col-span-12' : 'lg:col-span-6',
-        flagged && 'ring-1 ring-[#F87171]/35',
+        'flex min-h-[280px] w-full flex-col',
+        flagged && 'ring-1 ring-[#F87171]/40',
+        className,
       )}
     >
-      <div className="flex h-full flex-col p-5 sm:p-6">
+      <div className="relative z-[2] flex h-full flex-col p-5 sm:p-6">
         <div className="flex items-center justify-between">
-          <div className="text-[16px] font-semibold tracking-[-0.02em]">
+          <div className="text-[15px] font-semibold tracking-[-0.02em]">
             Reputation
           </div>
           <span className="text-[12px] font-medium text-white/35">
@@ -496,8 +523,8 @@ function ReputationCard({
                 onClick={() => setOpenSource(open ? null : h.source)}
                 aria-expanded={open}
                 className={cn(
-                  'flex w-full flex-col gap-1 py-3 text-left transition hover:bg-white/[0.03]',
-                  i > 0 && 'border-t border-white/10',
+                  'flex w-full flex-col gap-1 py-3 text-left transition hover:bg-white/[0.04]',
+                  i > 0 && 'border-t border-white/[0.08]',
                 )}
               >
                 <div className="flex items-center justify-between gap-3">
@@ -530,109 +557,102 @@ function ReputationCard({
           })}
         </div>
       </div>
-    </section>
+    </CardShell>
   )
 }
 
 function ActivityCard({
   report,
-  fullWidth = false,
+  className,
 }: {
   report: RecipientReport
-  fullWidth?: boolean
+  className?: string
 }) {
   const { activity } = report
-  const danger = activity.avgTxPerDay > 30
+  const hot = activity.avgTxPerDay > 30
   const vals = activity.dailyOutbound
   const max = Math.max(...vals, 1)
   const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
   return (
-    <section
-      className={cn(
-        'relative col-span-12 h-[300px] overflow-hidden rounded-[24px]',
-        fullWidth ? 'sm:col-span-6 lg:col-span-6' : 'sm:col-span-6 lg:col-span-3',
-      )}
+    <CardShell
+      variant="raised"
+      className={cn('flex min-h-[200px] w-full flex-1 flex-col', className)}
     >
-      <GradientBg {...GRADS[3]} />
-      <div className="absolute inset-0 z-[2] flex flex-col p-5">
-        <div className="flex items-center justify-between">
-          <div className="text-[16px] font-semibold tracking-[-0.02em]">Activity</div>
-          <span className="text-[12px] text-white/50">7d</span>
+      <div className="relative z-[2] flex h-full flex-col p-5">
+        <div className="flex items-baseline justify-between">
+          <div className="text-[15px] font-semibold tracking-[-0.02em]">Activity</div>
+          <span className="text-[12px] text-white/40">Last 7 days</span>
         </div>
-        <div className="mt-3 text-[30px] font-extralight tracking-[-0.04em] leading-none tabular-nums">
+        <div className="mt-2 text-[28px] font-extralight tracking-[-0.04em] leading-none tabular-nums">
           {activity.avgTxPerDay}
-          <span className="text-[13px] text-white/50"> tx/day</span>
+          <span className="text-[13px] text-white/45"> tx/day</span>
         </div>
-        <div className="mt-1.5 text-[12px] font-medium text-white/50">
+        <div className="mt-1 text-[12px] font-medium text-white/40">
           {activity.lastActive}
         </div>
 
-        <div className="mt-auto flex items-end gap-1.5 pt-4" style={{ height: 100 }}>
+        <div className="mt-auto flex items-end gap-1.5 pt-3" style={{ height: 88 }}>
           {vals.map((v, i) => {
-            const h = Math.max(12, (v / max) * 78)
-            const hot = i === vals.length - 1
+            const h = Math.max(10, (v / max) * 64)
+            const isLast = i === vals.length - 1
             return (
-              <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
+              <div key={i} className="flex flex-1 flex-col items-center gap-1">
                 <div
-                  className="w-full max-w-[14px] rounded-full"
+                  className="w-full max-w-[12px] rounded-full"
                   style={{
                     height: h,
-                    background: hot
-                      ? danger
+                    background: isLast
+                      ? hot
                         ? LEVEL_COLOR.danger
-                        : '#c4b5fd'
-                      : 'rgba(255,255,255,.2)',
+                        : ACCENT
+                      : 'rgba(255,255,255,.18)',
                   }}
                 />
-                <span className="text-[10px] text-white/35">{days[i]}</span>
+                <span className="text-[10px] text-white/30">{days[i]}</span>
               </div>
             )
           })}
         </div>
       </div>
-      <Rim />
-    </section>
+    </CardShell>
   )
 }
 
 function FlowCard({
   report,
-  fullWidth = false,
+  className,
 }: {
   report: RecipientReport
-  fullWidth?: boolean
+  className?: string
 }) {
   const { activity } = report
   const outboundHeavy = activity.outboundShare >= 70
   return (
-    <section
-      className={cn(
-        'relative col-span-12 h-[300px] overflow-hidden rounded-[24px]',
-        fullWidth ? 'sm:col-span-6 lg:col-span-6' : 'sm:col-span-6 lg:col-span-3',
-      )}
+    <CardShell
+      variant="raised"
+      className={cn('flex min-h-[180px] w-full flex-1 flex-col', className)}
     >
-      <GradientBg {...GRADS[4]} />
       <div className="relative z-[2] flex h-full flex-col p-5">
-        <div className="text-[16px] font-semibold tracking-[-0.02em]">Fund flow</div>
-        <div className="mt-1 text-[12px] font-medium text-white/50">In vs out</div>
-        <div className="mt-auto space-y-5 pb-1">
+        <div className="text-[15px] font-semibold tracking-[-0.02em]">Fund flow</div>
+        <div className="mt-0.5 text-[12px] text-white/40">Inbound vs outbound</div>
+        <div className="mt-auto space-y-4 pb-1">
           {(
             [
               ['Inbound', activity.inboundShare, '#fff'],
               [
                 'Outbound',
                 activity.outboundShare,
-                outboundHeavy ? LEVEL_COLOR.danger : '#c4b5fd',
+                outboundHeavy ? LEVEL_COLOR.danger : ACCENT,
               ],
             ] as const
           ).map(([label, share, color]) => (
             <div key={label}>
-              <div className="mb-2 flex items-center justify-between text-[12.5px] font-semibold">
+              <div className="mb-1.5 flex items-center justify-between text-[12.5px] font-semibold">
                 <span>{label}</span>
                 <span className="font-mono">{share}%</span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-black/30">
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
                 <div
                   className="h-full rounded-full"
                   style={{ width: `${share}%`, background: color }}
@@ -642,8 +662,7 @@ function FlowCard({
           ))}
         </div>
       </div>
-      <Rim />
-    </section>
+    </CardShell>
   )
 }
 
@@ -719,44 +738,101 @@ export function SafetyBento({
           </div>
         ) : null}
 
-        <div className="grid grid-cols-12 gap-4 sm:gap-5">
-          {showHero ? <ScoreHero report={report} /> : null}
-          {showAccount ? <AccountCard report={report} /> : null}
+        {section === 'overview' || section === 'lookup' ? (
+          <div className="flex flex-col gap-4 sm:gap-5">
+            {/* Hero + tall recipient rail (Sapphire-style vertical side) */}
+            <div className="grid grid-cols-12 items-stretch gap-4 sm:gap-5">
+              <div className="col-span-12 flex flex-col gap-4 sm:gap-5 lg:col-span-8">
+                {showHero ? <ScoreHero report={report} /> : null}
+                {showSignals ? (
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-5">
+                    {ranked.slice(0, 4).map((signal, index) => (
+                      <SignalTile
+                        key={signal.id}
+                        signal={signal}
+                        rankIndex={index}
+                        open={openSignalId === signal.id}
+                        onToggle={() =>
+                          setOpenSignalId((id) =>
+                            id === signal.id ? null : signal.id,
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              {showAccount ? (
+                <div className="col-span-12 lg:col-span-4">
+                  <AccountCard report={report} tall />
+                </div>
+              ) : null}
+            </div>
 
-          {showSignals
-            ? ranked.map((signal, index) => (
-                <SignalTile
-                  key={signal.id}
-                  signal={signal}
-                  index={index}
-                  rankIndex={index}
-                  total={ranked.length}
-                  open={openSignalId === signal.id}
-                  onToggle={() =>
-                    setOpenSignalId((id) =>
-                      id === signal.id ? null : signal.id,
-                    )
-                  }
-                />
-              ))
-            : null}
+            {/* Wide reputation + tall activity rail */}
+            <div className="grid grid-cols-12 items-stretch gap-4 sm:gap-5">
+              <div className="col-span-12 flex flex-col gap-4 sm:gap-5 lg:col-span-8">
+                {showReputation ? (
+                  <ReputationCard hits={report.blacklists} className="flex-1" />
+                ) : null}
+                {showSignals && ranked.length > 4 ? (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+                    {ranked.slice(4).map((signal, index) => (
+                      <SignalTile
+                        key={signal.id}
+                        signal={signal}
+                        rankIndex={index + 4}
+                        open={openSignalId === signal.id}
+                        onToggle={() =>
+                          setOpenSignalId((id) =>
+                            id === signal.id ? null : signal.id,
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              {showActivity ? (
+                <div className="col-span-12 flex min-h-[420px] flex-col gap-4 sm:gap-5 lg:col-span-4">
+                  <ActivityCard report={report} />
+                  <FlowCard report={report} />
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4 sm:gap-5">
+            {showSignals ? (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 sm:gap-5">
+                {ranked.map((signal, index) => (
+                  <SignalTile
+                    key={signal.id}
+                    signal={signal}
+                    rankIndex={index}
+                    open={openSignalId === signal.id}
+                    onToggle={() =>
+                      setOpenSignalId((id) =>
+                        id === signal.id ? null : signal.id,
+                      )
+                    }
+                  />
+                ))}
+              </div>
+            ) : null}
 
-          {showReputation ? (
-            <ReputationCard
-              hits={report.blacklists}
-              fullWidth={section === 'reputation'}
-            />
-          ) : null}
-          {showActivity ? (
-            <>
-              <ActivityCard
-                report={report}
-                fullWidth={section === 'activity'}
-              />
-              <FlowCard report={report} fullWidth={section === 'activity'} />
-            </>
-          ) : null}
-        </div>
+            {showReputation ? (
+              <ReputationCard hits={report.blacklists} />
+            ) : null}
+
+            {showActivity ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+                <ActivityCard report={report} className="min-h-[260px]" />
+                <FlowCard report={report} className="min-h-[260px]" />
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
     </div>
   )
