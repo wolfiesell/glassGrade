@@ -8,7 +8,7 @@ export type XrpPaymentProposal = {
   budget?: { limit: number; spent: number; currency: 'XRP' }
 }
 
-export type QrTransactionRequest = { tx: string; net: 'testnet'; code?: string }
+export type QrTransactionRequest = { tx: string; net: 'testnet'; code?: string; limit?: number }
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 

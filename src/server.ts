@@ -109,7 +109,29 @@ app.post('/ledger/xrp/qr-review', async (req, res) => {
 
   const requestId = randomUUID();
   try {
-    const input = proposalAnalysisInput(decoded.proposal);
+    // Budget: the limit is policy (server config wins over the QR's `limit`); "spent" is
+    // measured here from the sender's validated XRPL history over the window, never trusted
+    // from the link. Without a limit, or with history that doesn't cover the window, the rules
+    // keep reporting the budget as missing.
+    const configuredLimit = Number(process.env.QR_BUDGET_LIMIT_XRP);
+    const limit = configuredLimit > 0 ? configuredLimit : parsed.data.limit;
+    const windowHours = Number(process.env.QR_BUDGET_WINDOW_HOURS) > 0 ? Number(process.env.QR_BUDGET_WINDOW_HOURS) : 24;
+    let budget;
+    if (limit) {
+      const spent = await xrpl.spentXrpSince(decoded.proposal.sender, Date.now() - windowHours * 3_600_000);
+      budget = {
+        limit,
+        limitSource: configuredLimit > 0 ? 'server config (QR_BUDGET_LIMIT_XRP)' : 'QR request',
+        spentXrp: spent.spentXrp,
+        spentSource: `XRPL Testnet history: validated outgoing XRP payments in the last ${windowHours} h`,
+        windowHours,
+        historyComplete: spent.complete,
+      };
+    }
+    const proposal = budget?.historyComplete
+      ? { ...decoded.proposal, budget: { limit: budget.limit, spent: budget.spentXrp, currency: 'XRP' as const } }
+      : decoded.proposal;
+    const input = proposalAnalysisInput(proposal);
     const metrics = await xrpl.analyze(input);
     const rules = evaluateRules(input, metrics);
     let jev = null;
@@ -128,6 +150,7 @@ app.post('/ledger/xrp/qr-review', async (req, res) => {
       qrCode: decoded.code,
       proposal: decoded.proposal,
       transaction: decoded.transaction,
+      budget,
       metrics,
       rules,
       jev,

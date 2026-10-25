@@ -1,4 +1,5 @@
 import { Client } from 'xrpl';
+import { historyCoversWindow, sumOutgoingXrpSince } from './budget.js';
 import { parseAmount } from './rules.js';
 import type { AnalysisInput, Analytics } from './types.js';
 
@@ -40,6 +41,29 @@ export class XrplAnalyticsService {
       if (detail.data?.error === 'actNotFound' || detail.error === 'actNotFound') return { exists: false, balanceXrp: null };
       throw error;
     }
+  }
+  /**
+   * XRP the account sent since `sinceMs`, from validated history (newest first, paged).
+   * `complete` is false when the pages ran out before reaching the window start.
+   */
+  async spentXrpSince(account: string, sinceMs: number): Promise<{ spentXrp: number; complete: boolean }> {
+    await this.connect();
+    const records: TxRecord[] = [];
+    let marker: unknown;
+    for (let page = 0; page < 10; page++) {
+      let response;
+      try {
+        response = await this.client.request({ command: 'account_tx', account, api_version: 2, ledger_index_min: -1, ledger_index_max: -1, limit: 200, forward: false, ...(marker ? { marker } : {}) });
+      } catch (error) {
+        const detail = error as { data?: { error?: string }; error?: string };
+        if (detail.data?.error === 'actNotFound' || detail.error === 'actNotFound') return { spentXrp: 0, complete: true };
+        throw error;
+      }
+      records.push(...((response.result.transactions ?? []) as unknown as TxRecord[]).map(r => ({ ...r, tx: r.tx_json ?? r.tx ?? {} })));
+      marker = response.result.marker;
+      if (historyCoversWindow(records, Boolean(marker), sinceMs)) break;
+    }
+    return { spentXrp: sumOutgoingXrpSince(records, account, sinceMs), complete: historyCoversWindow(records, Boolean(marker), sinceMs) };
   }
   async analyze(input: AnalysisInput): Promise<Analytics> {
     const [sender, recipient, senderInfo, recipientInfo] = await Promise.all([

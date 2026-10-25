@@ -5,6 +5,7 @@ import { LiveResult, type LiveDecision } from '@/components/ledger-xrp-review'
 type QrReviewResponse = LiveDecision & {
   proposal?: { sender: string; recipient: string; amount: string; destinationTag?: number }
   transaction?: { amountDrops: string; feeDrops?: string; sequence?: number }
+  budget?: { limit: number; limitSource: string; spentXrp: number; spentSource: string; windowHours: number; historyComplete: boolean }
   requestId?: string
 }
 
@@ -15,9 +16,11 @@ function readQrRequest(): QrTransactionRequest {
   const tx = params.get('tx')
   const net = params.get('net')
   const code = params.get('code') ?? undefined
+  // Optional spending limit in XRP set on the device side; the backend measures "spent" itself.
+  const limit = Number(params.get('limit'))
   if (!tx) throw new Error('This QR link does not contain a transaction.')
   if (net !== 'testnet') throw new Error('Only XRPL Testnet QR requests are supported.')
-  return { tx, net, ...(code ? { code } : {}) }
+  return { tx, net, ...(code ? { code } : {}), ...(limit > 0 ? { limit } : {}) }
 }
 
 export function QrTransactionReview() {
@@ -64,6 +67,7 @@ export function QrTransactionReview() {
               <Detail label="Amount" value={`${result.proposal?.amount ?? '—'} XRP`} />
               <Detail label="Destination tag" value={result.proposal?.destinationTag ?? 'None'} />
               <Detail label="Fee" value={result.transaction?.feeDrops ? `${result.transaction.feeDrops} drops` : 'Not supplied'} />
+              <Detail label={`Budget (last ${result.budget?.windowHours ?? 24} h)`} value={budgetText(result)} />
               {result.requestId ? <Detail label="Review request" value={result.requestId} /> : null}
             </section>
             <LiveResult result={result} />
@@ -72,6 +76,14 @@ export function QrTransactionReview() {
       </div>
     </main>
   )
+}
+
+function budgetText(result: QrReviewResponse): string {
+  const b = result.budget
+  if (!b) return 'No spending limit set'
+  if (!b.historyComplete) return `Limit ${b.limit} XRP; spent unknown (XRPL history did not cover the window)`
+  const after = b.spentXrp + Number(result.proposal?.amount ?? 0)
+  return `${b.spentXrp} XRP spent + this payment = ${after} of ${b.limit} XRP (limit from ${b.limitSource})`
 }
 
 function Detail({ label, value }: { label: string; value: React.ReactNode }) {

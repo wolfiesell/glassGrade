@@ -6,6 +6,9 @@ export const qrTransactionSchema = z.object({
   tx: z.string().regex(/^(?:[0-9a-f]{2})+$/i, 'Transaction must be even-length hexadecimal').max(8192),
   net: z.literal('testnet'),
   code: z.string().max(64).optional(),
+  // Spending limit in XRP chosen by the device owner. "Spent" is never taken from the QR:
+  // the backend measures it from XRPL history.
+  limit: z.number().positive().max(100_000_000_000).optional(),
 })
 
 export type QrTransactionRequest = z.infer<typeof qrTransactionSchema>
