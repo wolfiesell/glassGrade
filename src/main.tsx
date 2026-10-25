@@ -1,30 +1,6 @@
-import { StrictMode, useEffect, useState } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
-import { WalletDemo } from './ui/emulator'
-import './ui/emulator/styles.css'
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { WalletDemo } from './ui/emulator';
+import './ui/emulator/styles.css';
 
-function Root() {
-  const [hash, setHash] = useState(() => window.location.hash)
-
-  useEffect(() => {
-    const onHash = () => setHash(window.location.hash)
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
-  }, [])
-
-  // Ledger-style emulator mock from main
-  if (hash.startsWith('#/wallet') || hash.startsWith('#/device')) {
-    return <WalletDemo />
-  }
-
-  // GlassGrade safety dashboard (frontend)
-  return <App />
-}
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <Root />
-  </StrictMode>,
-)
+createRoot(document.getElementById('root')!).render(<React.StrictMode><WalletDemo /></React.StrictMode>);
