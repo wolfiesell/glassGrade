@@ -5,6 +5,18 @@ import { createFetchTransport } from '@system-one-ai/transport-fetch';
 import type { Analytics, RuleResult } from './types.js';
 
 export type JevDecision = { category: string; intentClarity: string; contextualConcern: string; contextualRisk: number; requiresReview: boolean; latencyMs: number };
+
+export function explainJevError(error: unknown): string {
+  const statusCode = error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number'
+    ? error.statusCode
+    : undefined;
+  if (statusCode === 402) return 'Jev account has insufficient credits. Add credits in System One, then retry.';
+  if (statusCode === 401 || statusCode === 403) return 'Jev credentials or account access were rejected. Check the System One API key and account.';
+  if (statusCode === 429 || statusCode === 529) return 'Jev is rate-limited or busy. Wait briefly, then retry.';
+  if (statusCode === 504) return 'Jev timed out. Retry the advisory.';
+  return statusCode ? `Jev advisory unavailable (HTTP ${statusCode}).` : 'Jev advisory service unavailable.';
+}
+
 export async function interpretWithJev(input: { metrics: Analytics; intent?: JsonValue; rules: RuleResult }): Promise<JevDecision | null> {
   const { SYSTEM_ONE_API_KEY: apiKey, SYSTEM_ONE_MODEL: model = 'jev', SYSTEM_ONE_BASE_URL: baseURL = 'https://system-one.dev/v1' } = process.env;
   if (!apiKey) return null;

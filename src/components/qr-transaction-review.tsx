@@ -38,7 +38,25 @@ export function QrTransactionReview() {
     const promise = reviewPromise.current ??= api.reviewQrTransaction(request.value)
     let active = true
     promise
-      .then(value => { if (active) setResult(value as QrReviewResponse) })
+      .then(value => {
+        if (!active) return
+        const initialResult = value as QrReviewResponse
+        setResult(initialResult)
+        setLoading(false)
+        if (initialResult.jevPending && initialResult.requestId) {
+          void api.reviewQrTransactionWithJev(initialResult.requestId)
+            .then(jevResult => {
+              if (active) setResult(current => current ? { ...current, ...jevResult } : current)
+            })
+            .catch(reason => {
+              if (active) setResult(current => current ? {
+                ...current,
+                jevPending: false,
+                jevError: reason instanceof Error ? reason.message : 'Jev advisory unavailable',
+              } : current)
+            })
+        }
+      })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'Could not review this QR transaction.') })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }

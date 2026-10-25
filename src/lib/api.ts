@@ -9,6 +9,19 @@ export type XrpPaymentProposal = {
 }
 
 export type QrTransactionRequest = { tx: string; net: 'testnet'; code?: string; limit?: number }
+export type QrReviewJevResponse = {
+  jev: {
+    category: string
+    intentClarity: string
+    contextualConcern: string
+    contextualRisk: number
+    requiresReview: boolean
+    latencyMs: number
+  } | null
+  jevError?: string
+  decision: string
+  jevPending: boolean
+}
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
@@ -44,6 +57,7 @@ export const api = {
   discoverXrpAccounts: () => post<{ status: string; accounts: unknown; dataSource: string }>('/ledger/xrp/discover', {}),
   reviewXrpPayment: (proposal: XrpPaymentProposal) => post('/ledger/xrp/review', proposal),
   reviewQrTransaction: (request: QrTransactionRequest) => post('/ledger/xrp/qr-review', request),
+  reviewQrTransactionWithJev: (requestId: string) => post<QrReviewJevResponse>(`/ledger/xrp/qr-review/${encodeURIComponent(requestId)}/jev`, {}),
   dryRunXrpPayment: (proposal: XrpPaymentProposal) => post('/ledger/xrp/dry-run', proposal),
   sendXrpPayment: (proposal: XrpPaymentProposal) => post('/ledger/xrp/send', proposal),
   analyzeTransaction: (proposal: XrpPaymentProposal) => post('/analyze-transaction', {

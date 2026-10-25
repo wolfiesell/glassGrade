@@ -14,7 +14,7 @@
     "build:frontend": "tsc -b tsconfig.app.json tsconfig.node.json && vite build",
     "lint": "oxlint",
     "start": "node dist/server.js",
-    "test": "tsx --test src/rules.test.ts src/ledger-wallet.test.ts src/qr-transaction.test.ts src/budget.test.ts",
+    "test": "tsx --test src/rules.test.ts src/ledger-wallet.test.ts src/qr-transaction.test.ts src/budget.test.ts src/jev.test.ts",
     "jev:sample": "tsx src/jev-sample.ts"
   },
   "dependencies": {

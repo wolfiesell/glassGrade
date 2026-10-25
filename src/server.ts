@@ -4,13 +4,19 @@ import { randomUUID } from 'node:crypto';
 import { analyzeSchema } from './types.js';
 import { evaluateRules, parseAmount } from './rules.js';
 import { XrplAnalyticsService } from './xrpl.js';
-import { interpretWithJev } from './jev.js';
+import { explainJevError, interpretWithJev } from './jev.js';
 import { discoverXrpAccounts, dryRunXrpPayment, proposalAnalysisInput, sendXrpPayment, xrpPaymentProposalSchema } from './ledger-wallet.js';
 import { decodeQrPayment, qrTransactionSchema } from './qr-transaction.js';
 
 const app=express();
 app.use(express.json({limit:'32kb'}));
 const xrpl=new XrplAnalyticsService();
+type QrJevJobResult = {
+  jev: Awaited<ReturnType<typeof interpretWithJev>>;
+  jevError?: string;
+  decision: string;
+};
+const qrJevJobs = new Map<string, Promise<QrJevJobResult>>();
 const allowedOrigins = new Set((process.env.CORS_ALLOWED_ORIGINS ?? '')
   .split(',')
   .map(origin => origin.trim())
@@ -34,6 +40,7 @@ const serviceInfo = {
     xrpDiscovery: 'POST /ledger/xrp/discover',
     xrpReview: 'POST /ledger/xrp/review',
     xrpQrReview: 'POST /ledger/xrp/qr-review',
+    xrpQrReviewJev: 'POST /ledger/xrp/qr-review/:requestId/jev',
     xrpDryRun: 'POST /ledger/xrp/dry-run',
     xrpSend: 'POST /ledger/xrp/send',
   },
@@ -72,8 +79,8 @@ app.post('/ledger/xrp/review', async (req, res) => {
     let jevError: string | undefined;
     try {
       jev = await interpretWithJev({ metrics, intent: input.intent, rules });
-    } catch {
-      jevError = 'Jev advisory service unavailable';
+    } catch (error) {
+      jevError = explainJevError(error);
     }
     const decision = rules.status === 'BLOCK' ? 'BLOCKED'
       : rules.status === 'INSUFFICIENT_DATA' ? 'INSUFFICIENT_DATA'
@@ -134,16 +141,33 @@ app.post('/ledger/xrp/qr-review', async (req, res) => {
     const input = proposalAnalysisInput(proposal);
     const metrics = await xrpl.analyze(input);
     const rules = evaluateRules(input, metrics);
-    let jev = null;
-    let jevError: string | undefined;
-    try {
-      jev = await interpretWithJev({ metrics, intent: input.intent, rules });
-    } catch {
-      jevError = 'Jev advisory service unavailable';
+    const jevPending = Boolean(process.env.SYSTEM_ONE_API_KEY);
+    if (jevPending) {
+      const jevJob = (async (): Promise<QrJevJobResult> => {
+        try {
+          const jev = await interpretWithJev({ metrics, intent: input.intent, rules });
+          return {
+            jev,
+            decision: rules.status === 'BLOCK' ? 'BLOCKED'
+              : rules.status === 'INSUFFICIENT_DATA' ? 'INSUFFICIENT_DATA'
+              : !jev || jev.requiresReview ? 'HUMAN_REVIEW' : 'ELIGIBLE_FOR_SIGNING',
+          };
+        } catch (error) {
+          return {
+            jev: null,
+            jevError: explainJevError(error),
+            decision: rules.status === 'BLOCK' ? 'BLOCKED'
+              : rules.status === 'INSUFFICIENT_DATA' ? 'INSUFFICIENT_DATA' : 'HUMAN_REVIEW',
+          };
+        }
+      })();
+      qrJevJobs.set(requestId, jevJob);
+      const expiry = setTimeout(() => qrJevJobs.delete(requestId), 60_000);
+      expiry.unref();
     }
     const decision = rules.status === 'BLOCK' ? 'BLOCKED'
       : rules.status === 'INSUFFICIENT_DATA' ? 'INSUFFICIENT_DATA'
-      : !jev || jev.requiresReview ? 'HUMAN_REVIEW' : 'ELIGIBLE_FOR_SIGNING';
+      : jevPending ? 'PENDING_JEV' : 'HUMAN_REVIEW';
     res.json({
       requestId,
       network: 'xrp:testnet',
@@ -153,8 +177,8 @@ app.post('/ledger/xrp/qr-review', async (req, res) => {
       budget,
       metrics,
       rules,
-      jev,
-      jevError,
+      jev: null,
+      jevPending,
       decision,
       xrplDataSource: process.env.XRPL_WS_URL ?? 'wss://s.altnet.rippletest.net:51233',
       disclaimer: 'QR data is an unsigned proposal. Jev is advisory; this endpoint does not sign or broadcast.',
@@ -163,6 +187,13 @@ app.post('/ledger/xrp/qr-review', async (req, res) => {
     const detail = error instanceof Error ? error.message : 'Unknown XRPL service error';
     res.status(502).json({ error: 'QR transaction review could not complete', requestId, detail });
   }
+});
+app.post('/ledger/xrp/qr-review/:requestId/jev', async (req, res) => {
+  const job = qrJevJobs.get(req.params.requestId);
+  if (!job) return res.status(404).json({ error: 'Jev review is missing or expired' });
+  const result = await job;
+  qrJevJobs.delete(req.params.requestId);
+  res.json({ ...result, jevPending: false });
 });
 app.post('/ledger/xrp/send', async (req, res) => {
   const parsed = xrpPaymentProposalSchema.safeParse(req.body);
@@ -188,7 +219,7 @@ app.post('/analyze-transaction',async(req,res)=>{
     const rules=evaluateRules(input,metrics);
     let jev=null, jevError:string|undefined;
     try { jev=await interpretWithJev({metrics,intent:input.intent,rules}); }
-    catch { jevError='Jev advisory service unavailable'; }
+    catch(error) { jevError=explainJevError(error); }
     const decision=rules.status==='BLOCK'?'BLOCKED':rules.status==='INSUFFICIENT_DATA'?'INSUFFICIENT_DATA':!jev||jev.requiresReview?'HUMAN_REVIEW':'ELIGIBLE_FOR_SIGNING';
     res.json({requestId,payment:{amount:parseAmount(input.payment.amount)},metrics,rules,jev,decision,jevError,
       disclaimer:'Eligibility is an analysis result. It is not approval, signing, or a guarantee that a transaction is safe.'});

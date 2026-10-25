@@ -29,6 +29,7 @@ export type LiveDecision = {
     latencyMs?: number
   } | null
   jevError?: string
+  jevPending?: boolean
 }
 
 export function LiveXrplDashboard({ result, onOpenReview }: { result: unknown; onOpenReview: () => void }) {
@@ -212,7 +213,7 @@ export function LiveResult({ result }: { result: unknown }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200/60">Review decision · deterministic rules, with Jev advisory separate</p>
-              <h2 className="mt-1 text-2xl font-semibold">{response?.decision ?? response?.rules?.status ?? 'Analysis complete'}</h2>
+              <h2 className="mt-1 text-2xl font-semibold">{response?.decision === 'PENDING_JEV' ? 'Jev advisory in progress' : response?.decision ?? response?.rules?.status ?? 'Analysis complete'}</h2>
             </div>
             <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/60">Rule status: {response?.rules?.status ?? 'unknown'}</span>
           </div>
@@ -233,7 +234,7 @@ export function LiveResult({ result }: { result: unknown }) {
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl bg-white/[0.04] p-4">
               <h3 className="text-sm font-semibold">Jev advisory</h3>
-              {response?.jev ? <p className="mt-2 text-sm text-white/65">{response.jev.category ?? 'Uncategorized'} · {response.jev.contextualConcern ?? 'No concern rating'} · risk {response.jev.contextualRisk ?? '—'}/4 · {response.jev.latencyMs ?? '—'} ms</p> : <p className="mt-2 text-sm text-white/45">{response?.jevError ?? 'No Jev result returned'}</p>}
+              {response?.jev ? <p className="mt-2 text-sm text-white/65">{response.jev.category ?? 'Uncategorized'} · {response.jev.contextualConcern ?? 'No concern rating'} · risk {response.jev.contextualRisk ?? '—'}/4 · {response.jev.latencyMs ?? '—'} ms</p> : <p className="mt-2 text-sm text-white/45">{response?.jevPending ? 'Jev advisory is running; transaction metrics and rule findings are ready.' : response?.jevError ?? 'No Jev result returned'}</p>}
             </div>
             <div className="rounded-xl bg-white/[0.04] p-4">
               <h3 className="text-sm font-semibold">Rule findings</h3>
