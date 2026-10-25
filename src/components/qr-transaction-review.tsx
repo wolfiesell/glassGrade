@@ -45,7 +45,10 @@ export function QrTransactionReview() {
     <main className="min-h-svh bg-[#09090b] px-5 py-8 text-white sm:px-8">
       <div className="mx-auto max-w-5xl space-y-5">
         <header className="rounded-2xl border border-white/10 bg-[#15131c]/90 p-5 sm:p-7">
-          <p className="text-xs font-semibold uppercase tracking-widest text-violet-300">GlassGrade · QR transaction review</p>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-violet-300">GlassGrade · QR transaction review</p>
+            <a href="/" className="shrink-0 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-white/70 transition hover:border-white/20 hover:bg-white/[0.06] hover:text-white">← Back to GlassGrade</a>
+          </div>
           <h1 className="mt-2 text-2xl font-semibold">XRPL Testnet payment</h1>
           <p className="mt-2 text-sm leading-relaxed text-white/55">The QR proposal is sent to the backend for XRPL history analysis and a separate Jev advisory. This review does not sign or broadcast.</p>
         </header>
