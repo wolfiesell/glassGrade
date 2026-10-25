@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { WalletDemo } from './ui/emulator'
-import './ui/emulator/styles.css'
 
 function Root() {
   const [hash, setHash] = useState(() => window.location.hash)

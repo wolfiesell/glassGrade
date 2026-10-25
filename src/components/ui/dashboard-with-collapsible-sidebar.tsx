@@ -247,7 +247,7 @@ export function GlassGradeDashboard() {
         <main className="flex-1 p-6 pb-48 sm:p-8 sm:pb-56">
           <div
             ref={wheelRef}
-            className="gg-wheel mx-auto max-w-[1200px]"
+            className="gg-wheel mx-auto w-full max-w-[1200px]"
             style={{ transformOrigin: '50% 0%' }}
           >
             <SafetyBento

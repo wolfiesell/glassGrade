@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 
 import type { TxPayload } from '../../core/schema';
+import './styles.css';
 
 type Step = 'review' | 'verify' | 'decision' | 'approved' | 'rejected';
 const steps = ['Review transaction', 'Verify on phone', 'Make a decision'];
