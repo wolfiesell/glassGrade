@@ -23,11 +23,11 @@ const NAV: {
   Icon: React.ComponentType<{ className?: string }>
   notifs?: number
 }[] = [
-  { id: 'overview', title: 'Sample overview', Icon: Home },
-  { id: 'signals', title: 'Sample signals', Icon: ShieldAlert, notifs: 4 },
-  { id: 'reputation', title: 'Sample reputation', Icon: ListChecks, notifs: 1 },
-  { id: 'activity', title: 'Sample activity', Icon: Activity },
-  { id: 'lookup', title: 'Sample lookup', Icon: Search },
+  { id: 'overview', title: 'Overview', Icon: Home },
+  { id: 'signals', title: 'Signals', Icon: ShieldAlert, notifs: 4 },
+  { id: 'scam', title: 'Scam check', Icon: ListChecks, notifs: 1 },
+  { id: 'activity', title: 'Activity', Icon: Activity },
+  { id: 'lookup', title: 'Lookup', Icon: Search },
   { id: 'live', title: 'Live data', Icon: Activity },
   { id: 'review', title: 'XRPL review', Icon: ShieldAlert },
 ]
@@ -125,7 +125,7 @@ function Sidebar({
             notifs={
               item.id === 'signals'
                 ? dangerCount
-                : item.id === 'reputation'
+                : item.id === 'scam'
                   ? 1
                   : undefined
             }
@@ -160,23 +160,23 @@ function sectionCopy(section: NavId) {
   switch (section) {
     case 'signals':
       return {
-        title: 'Sample risk signals',
-        subtitle: 'Demonstration data · not returned by the live API',
+        title: 'Risk signals',
+        subtitle: 'Ranked by how strongly they indicate an unsafe destination',
       }
-    case 'reputation':
+    case 'scam':
       return {
-        title: 'Sample reputation',
-        subtitle: 'Demonstration data · not returned by the live API',
+        title: 'Scam check',
+        subtitle: 'Public XRPL Scam Tracker match for this address',
       }
     case 'activity':
       return {
-        title: 'Sample activity',
-        subtitle: 'Demonstration data · not returned by the live API',
+        title: 'On-ledger activity',
+        subtitle: 'Velocity and inbound / outbound fund flow',
       }
     case 'lookup':
       return {
-        title: 'Sample address lookup',
-        subtitle: 'Generated demo results · not a live XRPL lookup',
+        title: 'Address lookup',
+        subtitle: 'Search any XRPL address — clear-signed names only appear from Ledger',
       }
     case 'review':
       return {
@@ -190,15 +190,15 @@ function sectionCopy(section: NavId) {
       }
     default:
       return {
-        title: 'Sample safety overview',
-        subtitle: 'Demonstration report · not connected to live XRPL data',
+        title: 'Safety overview',
+        subtitle: 'Opened from Ledger · XRPL clear-sign review',
       }
   }
 }
 
 export function GlassGradeDashboard() {
   const [sidebarOpen, setSidebarOpen] = React.useState(true)
-  const [selected, setSelected] = React.useState<NavId>('review')
+  const [selected, setSelected] = React.useState<NavId>('overview')
   const [report, setReport] = React.useState(mockReport)
   const [liveResult, setLiveResult] = React.useState<unknown>(null)
   const scrollRef = React.useRef<HTMLDivElement>(null)
@@ -209,20 +209,26 @@ export function GlassGradeDashboard() {
   const copy = sectionCopy(selected)
 
   React.useEffect(() => {
-    let running = true
-    function tick() {
-      if (!running) return
-      const scrollY = scrollRef.current?.scrollTop ?? 0
-      const wheel = wheelRef.current
-      if (wheel) {
+    const el = scrollRef.current
+    if (!el) return
+    let lastTilt = -1
+    const onScroll = () => {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(() => {
+        const scrollY = el.scrollTop
         const tilt = Math.min(scrollY / 900, 1) * 4.5
-        wheel.style.transform = `perspective(1600px) rotateX(${tilt}deg)`
-      }
-      rafRef.current = requestAnimationFrame(tick)
+        if (tilt === lastTilt) return
+        lastTilt = tilt
+        const wheel = wheelRef.current
+        if (wheel) {
+          wheel.style.transform = `perspective(1600px) rotateX(${tilt}deg)`
+        }
+      })
     }
-    rafRef.current = requestAnimationFrame(tick)
+    el.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
     return () => {
-      running = false
+      el.removeEventListener('scroll', onScroll)
       cancelAnimationFrame(rafRef.current)
     }
   }, [])
@@ -252,7 +258,7 @@ export function GlassGradeDashboard() {
           </div>
           {selected === 'review' ? null : (
             <div className="hidden rounded-full border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 font-mono text-[11px] font-semibold text-[#a78bfa] backdrop-blur-md sm:block">
-              Demo grade {report.grade} · {report.overallScore}/100
+              Grade {report.grade} · {report.overallScore}/100
             </div>
           )}
         </header>
