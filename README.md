@@ -1,31 +1,42 @@
 # GlassGrade
 
-XRPL Commons Hackathon frontend — dark bento dashboard (shadcn-style + Tailwind).
+XRPL Commons Hackathon — browser-only transaction safety demo.
 
-## Stack
+`ARCHITECTURE.md` is the full application plan (device → QR → analysis pipeline).
 
-- Vite + React + TypeScript
-- Tailwind CSS v4 (`@tailwindcss/vite`)
-- shadcn-ready layout: `src/components/ui`, `src/lib/utils.ts`, `components.json`
-- Path alias: `@/*` → `src/*`
+## Run locally
 
-## Run
+Requires Node.js 22.12 or newer.
 
 ```bash
 npm install
 npm run dev
 ```
 
-## UI
+- **`/`** — GlassGrade safety dashboard (frontend)
+- **`/#/wallet`** — Ledger-style wallet emulator mock
 
-`SafetyBento` (`src/components/ui/safety-bento.tsx`) is the purple dark bento dashboard for recipient risk — address age, blacklists, velocity, suspicious creation, balance share, familiarity, and more.
+```bash
+npm run build
+npm run preview
+```
 
-Demo data: `src/data/mockRecipient.ts`.
+## Stack
+
+- Vite + React + TypeScript
+- Tailwind CSS v4 (`@tailwindcss/vite`)
+- Three.js celestial sphere background
+- shadcn-ready layout: `src/components/ui`, `src/lib/utils.ts`, `components.json`
+- Path alias: `@/*` → `src/*`
+
+## Frontend
+
+`SafetyBento` / `GlassGradeDashboard` — purple dark bento dashboard for recipient risk (demo data in `src/data/mockRecipient.ts`).
+
+`WalletDemo` (`src/ui/emulator`) — interactive Ledger-style review mock with QR placeholder. Not a real device; does not sign.
 
 ### Adding more shadcn components
 
 ```bash
 npx shadcn@latest add button
 ```
-
-Components install into `src/components/ui` — keep that folder so imports like `@/components/ui/...` stay consistent with shadcn conventions.
