@@ -1,3 +1,7 @@
+<img width="1672" height="941" alt="image" src="https://github.com/user-attachments/assets/b6e104d3-5d3d-4997-9428-abcc4cefe033" />
+
+
+
 # IntentPay transaction intelligence
 
 Backend MVP for analyzing proposed XRPL Testnet payments before the caller signs them. It does not hold keys, sign, submit, or authorize a payment. The deterministic rules engine owns `BLOCK` outcomes; Jev provides structured interpretation only.

@@ -168,14 +168,14 @@ export function LedgerXrpReview({ onLiveResult }: { onLiveResult?: (result: unkn
             {busy === 'discover' ? 'Connecting…' : actionLabels.discover}
           </button>
           <button type="button" onClick={sampleProposal} disabled={busy !== null} className="rounded-xl border border-violet-300/25 px-4 py-2.5 text-sm font-medium text-violet-200 hover:bg-violet-400/10 disabled:opacity-50">
-            Load Testnet sample
+            Load Testnet proposal
           </button>
         </div>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-[#15131c]/90 p-5 sm:p-7">
         <h2 className="text-lg font-semibold">Review a proposed payment</h2>
-        <p className="mt-1 text-sm leading-relaxed text-white/50">Load the sample or enter a proposed payment. Review and analysis query live XRPL Testnet history and Jev; they do not sign or broadcast. Jev requests may be billable. Add real budget context if you have it; without a budget, the deterministic rules intentionally report insufficient data.</p>
+        <p className="mt-1 text-sm leading-relaxed text-white/50">Load a Testnet proposal or enter a proposed payment. Review and analysis query live XRPL Testnet history and Jev; they do not sign or broadcast. Jev requests may be billable. Add real budget context if you have it; without a budget, the deterministic rules intentionally report insufficient data.</p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="space-y-1.5 text-xs text-white/55">Ledger account label<input value={account} onChange={e => setAccount(e.target.value)} placeholder="e.g. testnet-account-1" className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-400/60" /><span className="block text-[11px] text-white/35">Only needed for Ledger dry-run/send; review uses this field as a label.</span></label>
           <label className="space-y-1.5 text-xs text-white/55">Sender address<input value={sender} onChange={e => setSender(e.target.value)} placeholder="r…" className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 font-mono text-sm text-white outline-none focus:border-violet-400/60" /></label>

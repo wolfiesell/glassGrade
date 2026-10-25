@@ -33,8 +33,12 @@ export type RecipientReport = {
   verdictDetail: string
   recipient: {
     address: string
-    /** Always null for search lookups — no clear-signed name. */
+    /**
+     * Human-readable name from a Ledger clear-signing session for a pending payment.
+     * Must be null when source === 'search' (manual lookup is not a signing session).
+     */
     displayName: string | null
+    /** True only when displayName came from clear signing on this payment. */
     verified: boolean
     firstSeen: string
     ageDays: number
@@ -99,8 +103,8 @@ export const mockReport: RecipientReport = {
     'New address, fast outbound activity, and a large share of your balance. Ledger flagged it; here’s why.',
   recipient: {
     address: 'rN7n7otQDd6FczFgLdlqtyMVrn3tQmHk9r',
-    displayName: null,
-    verified: false,
+    displayName: 'Elena Voss',
+    verified: true,
     firstSeen: '2026-10-22T14:08:00Z',
     ageDays: 2,
   },
@@ -116,7 +120,7 @@ export const mockReport: RecipientReport = {
       id: 'blacklist',
       label: 'Blacklist status',
       detail:
-        'Flagged on 1 of 4 public reputation sources checked for known scam / phishing clusters.',
+        'XRPL Scam Tracker lists this address in a known scam / phishing cluster. Sending here is very likely unsafe — stop and verify the destination through another channel before signing.',
       value: '1 source flagged',
       level: 'danger',
       weight: 25,
@@ -125,7 +129,7 @@ export const mockReport: RecipientReport = {
       id: 'creation',
       label: 'Creation circumstances',
       detail:
-        'Funded by a high-churn intermediary with no human-readable account domain set.',
+        'This account was funded by a high-churn intermediary and has no public domain set. That pattern often appears in throwaway scam wallets, so treat the destination as untrusted.',
       value: 'Suspicious funding path',
       level: 'danger',
       weight: 18,
@@ -134,7 +138,7 @@ export const mockReport: RecipientReport = {
       id: 'age',
       label: 'Address age',
       detail:
-        'Created only 2 days ago. Legitimate counterparts are usually older and have a longer on-ledger history.',
+        'Created only 2 days ago. Brand-new addresses have almost no on-ledger history, which makes them a common tool for one-off drain or phishing payments — prefer older, established recipients.',
       value: '2 days old',
       level: 'danger',
       weight: 22,
@@ -143,7 +147,7 @@ export const mockReport: RecipientReport = {
       id: 'velocity',
       label: 'Transaction velocity',
       detail:
-        'Average outbound pace is far above typical personal wallets — consistent with drain or mixer-like behavior.',
+        'About 48 outbound transactions per day is far above a normal personal wallet. Fast drain / mixer-like pacing is a reason to pause and confirm you intend to pay this party.',
       value: '48 tx / day',
       level: 'caution',
       weight: 15,
@@ -152,7 +156,7 @@ export const mockReport: RecipientReport = {
       id: 'balance-share',
       label: 'Share of your balance',
       detail:
-        'You are about to send 67% of the XRP currently on this Ledger account in a single payment.',
+        'This payment would send 67% of the XRP on this Ledger account in one shot. Even if the name looks right, that concentration of funds is a high-impact mistake if the destination is wrong.',
       value: '67% of wallet',
       level: 'danger',
       weight: 12,
@@ -161,7 +165,7 @@ export const mockReport: RecipientReport = {
       id: 'familiarity',
       label: 'New to you',
       detail:
-        'You have never sent to or received from this address before on this device.',
+        'You have never sent to or received from this address on this device. First-time counterparties deserve an extra check of the clear-signed name and amount before you approve.',
       value: 'First interaction',
       level: 'caution',
       weight: 8,
@@ -171,22 +175,7 @@ export const mockReport: RecipientReport = {
     {
       source: 'XRPL Scam Tracker',
       status: 'flagged',
-      note: 'Address cluster linked to recent phishing reports',
-    },
-    {
-      source: 'Community Deny List',
-      status: 'clear',
-      note: 'Not present on this list',
-    },
-    {
-      source: 'Exchange risk feed',
-      status: 'unknown',
-      note: 'No public match / feed unavailable',
-    },
-    {
-      source: 'Known mixer hop set',
-      status: 'clear',
-      note: 'Not in published hop set',
+      note: 'Address cluster linked to recent phishing reports on XRPL Scam Tracker.',
     },
   ],
   activity: {
@@ -225,8 +214,8 @@ export function isLikelyXrplAddress(value: string) {
 }
 
 /**
- * Lookup an XRPL address for the search bar.
- * Searched accounts never include a clear-signed holder name.
+ * Manual address lookup — public risk signals only.
+ * Never returns a clear-signed holder name (privacy: lookup ≠ signing session).
  */
 export function lookupAddress(raw: string): RecipientReport | null {
   const address = raw.trim()
@@ -236,8 +225,14 @@ export function lookupAddress(raw: string): RecipientReport | null {
     return {
       ...mockReport,
       source: 'search',
-      recipient: { ...mockReport.recipient, displayName: null },
+      recipient: {
+        ...mockReport.recipient,
+        displayName: null,
+        verified: false,
+      },
       transaction: null,
+      verdictDetail:
+        'Manual lookup — clear-signed names only appear during a Ledger payment review, never from search.',
     }
   }
 
@@ -325,9 +320,10 @@ export function lookupAddress(raw: string): RecipientReport | null {
           : 'Looks relatively safe'),
     verdictDetail:
       preset?.verdictDetail ??
-      'Manual lookup — no clear-signed account holder name is available for this address.',
+      'Manual lookup — clear-signed names only appear during a Ledger payment review, never from search.',
     recipient: {
       address,
+      // Privacy: never surface a personal name from address search.
       displayName: null,
       verified: false,
       firstSeen: preset?.recipient?.firstSeen ?? firstSeen.toISOString(),
@@ -340,26 +336,8 @@ export function lookupAddress(raw: string): RecipientReport | null {
         source: 'XRPL Scam Tracker',
         status: flagged ? 'flagged' : 'clear',
         note: flagged
-          ? 'Address cluster linked to recent phishing reports'
-          : 'Not present on this list',
-      },
-      {
-        source: 'Community Deny List',
-        status: 'clear',
-        note: 'Not present on this list',
-      },
-      {
-        source: 'Exchange risk feed',
-        status: score % 3 === 0 ? 'unknown' : 'clear',
-        note:
-          score % 3 === 0
-            ? 'No public match / feed unavailable'
-            : 'Not present on this list',
-      },
-      {
-        source: 'Known mixer hop set',
-        status: 'clear',
-        note: 'Not in published hop set',
+          ? 'Address cluster linked to recent phishing reports on XRPL Scam Tracker.'
+          : 'No match on XRPL Scam Tracker for this address.',
       },
     ],
     activity: {

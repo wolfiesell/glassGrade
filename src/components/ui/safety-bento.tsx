@@ -15,7 +15,7 @@ import {
 export type SafetySection =
   | 'overview'
   | 'signals'
-  | 'reputation'
+  | 'scam'
   | 'activity'
   | 'lookup'
 
@@ -41,7 +41,7 @@ const LEVEL_COLOR: Record<RiskLevel, string> = {
 
 /** Shared tile sizes — variety via orientation, not random heights. */
 const H_HERO = 'h-[280px]'
-const H_METRIC = 'h-[148px]'
+const H_METRIC = 'min-h-[158px] h-full'
 const RADIUS = 'rounded-2xl'
 /** Opaque panel fills with slight unique purple gradients. */
 const PANEL_GRADS = [
@@ -61,8 +61,8 @@ const RAISED_GRADS = [
 ]
 
 const LEVEL_MARK: Record<RiskLevel, string> = {
-  danger: 'Flagged',
-  caution: 'Watch',
+  danger: 'Warning',
+  caution: 'Be cautious',
   safe: 'Clear',
 }
 
@@ -223,7 +223,7 @@ function AddressSearch({
         <p className="mt-1.5 text-[11.5px] font-medium text-[#F87171]">{error}</p>
       ) : (
         <p className="mt-1.5 text-[11.5px] text-white/30">
-          Searched accounts never show a holder name.
+          Search never shows a clear-signed personal name — only the r-address and risk signals.
         </p>
       )}
     </form>
@@ -341,6 +341,11 @@ function AccountCard({
 }) {
   const { recipient, transaction } = report
   const isSearch = report.source === 'search'
+  // Clear-signed names exist only for a Ledger payment review — never for search.
+  const clearSignedName =
+    !isSearch && recipient.displayName && recipient.verified
+      ? recipient.displayName
+      : null
 
   return (
     <CardShell
@@ -360,16 +365,52 @@ function AccountCard({
           </span>
         </div>
 
-        <p className="mt-5 text-[14px] font-semibold">
-          {recipient.displayName ?? 'No verified name'}
-        </p>
-        <code className="mt-2 break-all rounded-xl bg-black/30 px-3 py-2.5 font-mono text-[11.5px] leading-relaxed text-white/70">
+        {clearSignedName ? (
+          <div className="mt-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="m-0 text-[16px] font-semibold tracking-[-0.02em] text-white">
+                {clearSignedName}
+              </p>
+              <span className="rounded-full border border-[#8b5cf6]/35 bg-[#8b5cf6]/15 px-2 py-0.5 text-[10px] font-semibold tracking-[0.04em] text-[#c4b5fd] uppercase">
+                Clear-signed name
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11.5px] leading-relaxed text-white/40">
+              Shown only for this pending payment from Ledger clear signing — not
+              from a public address directory.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-5">
+            <p className="m-0 text-[14px] font-semibold text-white/55">
+              {isSearch ? 'Name hidden' : 'No clear-signed name'}
+            </p>
+            <p className="mt-1.5 text-[11.5px] leading-relaxed text-white/40">
+              {isSearch
+                ? 'Manual lookup never reveals a personal name. You only see the r-address and public risk signals.'
+                : 'This Ledger review did not include a clear-signed identity for the destination.'}
+            </p>
+          </div>
+        )}
+        <code className="mt-3 break-all rounded-xl bg-black/30 px-3 py-2.5 font-mono text-[11.5px] leading-relaxed text-white/70">
           {recipient.address}
         </code>
 
         <p className="mt-3 text-[12.5px] text-white/45">
-          <span className={recipient.verified ? 'text-[#c4b5fd]' : 'text-[#f87171]'}>
-            {recipient.verified ? 'Verified' : 'Unverified'}
+          <span
+            className={
+              clearSignedName
+                ? 'text-[#c4b5fd]'
+                : isSearch
+                  ? 'text-white/50'
+                  : 'text-[#f87171]'
+            }
+          >
+            {clearSignedName
+              ? 'Clear-signed'
+              : isSearch
+                ? 'Lookup only'
+                : 'Not clear-signed'}
           </span>
           <span className="text-white/25"> · </span>
           <span>{recipient.ageDays} days old</span>
@@ -395,7 +436,7 @@ function AccountCard({
           </div>
         ) : null}
 
-        {transaction ? (
+        {transaction && !isSearch ? (
           <div className="mt-auto pt-5">
             <div className="text-[11px] font-semibold tracking-[0.06em] text-white/40 uppercase">
               Signing now
@@ -410,8 +451,9 @@ function AccountCard({
           </div>
         ) : (
           <p className="mt-auto pt-5 text-[12.5px] leading-relaxed text-white/40">
-            Manual lookup — no pending payment. Holder name is never shown for
-            searched addresses.
+            {isSearch
+              ? 'Manual lookup — no pending payment and no clear-signed name (privacy).'
+              : 'No pending payment amount on this review.'}
           </p>
         )}
       </div>
@@ -433,6 +475,12 @@ function SignalTile({
   className?: string
 }) {
   const color = LEVEL_COLOR[signal.level]
+  const why =
+    signal.level === 'danger'
+      ? `Why this is a warning: ${signal.detail}`
+      : signal.level === 'caution'
+        ? `Why to be cautious: ${signal.detail}`
+        : `Why this looks fine: ${signal.detail}`
 
   return (
     <CardShell
@@ -442,15 +490,17 @@ function SignalTile({
       aria-expanded={open}
       variant="panel"
       className={cn(
-        'flex w-full text-left transition hover:brightness-110',
+        'flex w-full cursor-pointer text-left transition hover:brightness-110',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8b5cf6]',
-        open ? 'min-h-[148px] h-auto ring-1 ring-[#8b5cf6]/40' : H_METRIC,
+        open
+          ? 'h-auto min-h-[158px] overflow-visible ring-1 ring-[#8b5cf6]/40'
+          : H_METRIC,
         className,
       )}
     >
       {/* Accent bar — purple, never a red wash */}
       <div
-        className="absolute top-4 bottom-4 left-0 w-[3px] rounded-r-full"
+        className="pointer-events-none absolute top-4 bottom-4 left-0 w-[3px] rounded-r-full"
         style={{
           background:
             signal.level === 'danger'
@@ -460,9 +510,9 @@ function SignalTile({
                 : 'rgba(255,255,255,.2)',
         }}
       />
-      <div className="relative z-[2] flex w-full flex-col p-4 pl-5 sm:p-5 sm:pl-6">
-        <div className="flex items-baseline justify-between gap-2">
-          <div className="truncate text-[12px] text-white/50">
+      <div className="relative z-[2] flex w-full flex-col p-4 pb-4 pl-5 sm:p-5 sm:pb-5 sm:pl-6">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 text-[11px] leading-snug font-medium text-white/55">
             <span className="text-white/30">{rankIndex + 1}. </span>
             {signal.label}
           </div>
@@ -470,95 +520,109 @@ function SignalTile({
             {LEVEL_MARK[signal.level]}
           </span>
         </div>
-        <div className="mt-auto pt-3 text-[20px] font-extralight tracking-[-0.04em] leading-none tabular-nums text-white">
+        <div className="mt-3 text-[18px] font-extralight tracking-[-0.04em] leading-snug text-white sm:text-[20px]">
           {signal.value}
         </div>
         {open ? (
-          <p className="mt-3 text-[12px] leading-relaxed text-white/60">
-            {signal.detail}
-          </p>
-        ) : (
-          <p className="mt-2 text-[11px] text-white/30">Details</p>
-        )}
+          <p className="mt-3 text-[12px] leading-relaxed text-white/65">{why}</p>
+        ) : null}
       </div>
     </CardShell>
   )
 }
 
-function ReputationCard({
+function ScamCheckCard({
   hits,
   className,
 }: {
   hits: BlacklistHit[]
   className?: string
 }) {
-  const flagged = hits.some((h) => h.status === 'flagged')
-  const [openSource, setOpenSource] = React.useState<string | null>(null)
+  const tracker =
+    hits.find((h) => h.source === 'XRPL Scam Tracker') ?? hits[0] ?? null
+  const flagged = tracker?.status === 'flagged'
+  const [open, setOpen] = React.useState(false)
+
+  if (!tracker) return null
+
+  const summary = flagged
+    ? 'This address appears in XRPL Scam Tracker reports. Do not sign until you independently verify the destination.'
+    : 'No listing on XRPL Scam Tracker. That helps, but one clear list is not a full safety guarantee.'
 
   return (
     <CardShell
+      as="button"
+      type="button"
+      onClick={() => setOpen((v) => !v)}
+      aria-expanded={open}
       variant="panel"
       className={cn(
-        'flex min-h-[280px] w-full flex-col',
+        'flex h-full min-h-[148px] w-full cursor-pointer flex-col text-left transition hover:brightness-110',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8b5cf6]',
+        open && 'overflow-visible ring-1 ring-[#8b5cf6]/40',
         flagged && 'ring-1 ring-[#F87171]/40',
         className,
       )}
     >
-      <div className="relative z-[2] flex h-full flex-col p-5 sm:p-6">
-        <div className="flex items-center justify-between">
-          <div className="text-[15px] font-semibold tracking-[-0.02em]">
-            Reputation
+      <div className="relative z-[2] flex h-full flex-col justify-center px-5 py-5 sm:px-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[15px] font-semibold tracking-[-0.02em]">
+              Scam check
+            </div>
+            <p className="mt-0.5 text-[12px] text-white/40">XRPL Scam Tracker</p>
           </div>
-          <span className="text-[12px] font-medium text-white/35">
-            Click a row for details
+          <span
+            className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            style={{
+              color: flagged ? LEVEL_COLOR.danger : LEVEL_COLOR.safe,
+              background: flagged
+                ? 'rgba(248,113,113,.12)'
+                : 'rgba(161,161,170,.12)',
+            }}
+          >
+            {flagged ? 'Warning' : tracker.status === 'clear' ? 'Clear' : 'Unknown'}
           </span>
         </div>
-        <div className="mt-3 flex-1 overflow-y-auto">
-          {hits.map((h, i) => {
-            const open = openSource === h.source
-            return (
-              <button
-                key={h.source}
-                type="button"
-                onClick={() => setOpenSource(open ? null : h.source)}
-                aria-expanded={open}
-                className={cn(
-                  'flex w-full flex-col gap-1 py-3 text-left transition hover:bg-white/[0.04]',
-                  i > 0 && 'border-t border-white/[0.08]',
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0 text-[13px] font-semibold text-white">
-                    {h.source}
-                  </div>
-                  <span
-                    className="shrink-0 font-mono text-[11px] font-semibold"
-                    style={{
-                      color:
-                        h.status === 'flagged'
-                          ? LEVEL_COLOR.danger
-                          : h.status === 'clear'
-                            ? LEVEL_COLOR.safe
-                            : 'rgba(255,255,255,.45)',
-                    }}
-                  >
-                    {h.status === 'flagged'
-                      ? 'Flagged'
-                      : h.status === 'clear'
-                        ? 'Clear'
-                        : 'Unknown'}
-                  </span>
-                </div>
-                {open ? (
-                  <p className="text-[12px] leading-relaxed text-white/55">{h.note}</p>
-                ) : null}
-              </button>
-            )
-          })}
-        </div>
+
+        <p className="mt-4 text-[22px] font-extralight tracking-[-0.03em] text-white">
+          {flagged ? 'Match found' : 'No match'}
+        </p>
+
+        {open ? (
+          <div className="mt-3 space-y-2 border-t border-white/[0.08] pt-3">
+            <p className="text-[12.5px] leading-relaxed text-white/65">{summary}</p>
+            <p className="text-[12px] leading-relaxed text-white/45">{tracker.note}</p>
+          </div>
+        ) : null}
       </div>
     </CardShell>
   )
+}
+
+function concernTone(
+  level: RiskLevel,
+  cautionLabel = 'Be cautious',
+) {
+  if (level === 'danger') {
+    return {
+      label: 'Warning',
+      color: LEVEL_COLOR.danger,
+      bg: 'rgba(248,113,113,.12)',
+    }
+  }
+  if (level === 'caution') {
+    return {
+      label: cautionLabel,
+      color: ACCENT_SOFT,
+      bg: 'rgba(167,139,250,.14)',
+    }
+  }
+  return {
+    label: 'Looks fine',
+    color: LEVEL_COLOR.safe,
+    bg: 'rgba(161,161,170,.12)',
+  }
 }
 
 function ActivityCard({
@@ -569,20 +633,51 @@ function ActivityCard({
   className?: string
 }) {
   const { activity } = report
-  const hot = activity.avgTxPerDay > 30
+  const [open, setOpen] = React.useState(false)
+  const level: RiskLevel =
+    activity.avgTxPerDay > 30
+      ? 'danger'
+      : activity.avgTxPerDay > 15
+        ? 'caution'
+        : 'safe'
+  const tone = concernTone(level, 'Possibly elevated')
+  const hot = level !== 'safe'
   const vals = activity.dailyOutbound
   const max = Math.max(...vals, 1)
   const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+  const explain =
+    level === 'danger'
+      ? `${activity.avgTxPerDay} transactions per day is far above a typical personal wallet. High outbound velocity often shows up in drain, mixer, or automated scam wallets — pause and verify who you are paying.`
+      : level === 'caution'
+        ? `${activity.avgTxPerDay} tx/day is elevated for casual use. It can be legitimate (exchange, merchant), but confirm the destination before sending a large share of your balance.`
+        : `${activity.avgTxPerDay} tx/day sits in a normal personal-wallet range. Velocity alone is not a red flag here.`
 
   return (
     <CardShell
+      as="button"
+      type="button"
+      onClick={() => setOpen((v) => !v)}
+      aria-expanded={open}
       variant="raised"
-      className={cn('flex min-h-[200px] w-full flex-1 flex-col', className)}
+      className={cn(
+        'flex h-full min-h-[148px] w-full cursor-pointer flex-col text-left transition hover:brightness-110',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8b5cf6]',
+        open && 'overflow-visible ring-1 ring-[#8b5cf6]/40',
+        className,
+      )}
     >
-      <div className="relative z-[2] flex h-full flex-col p-5">
-        <div className="flex items-baseline justify-between">
-          <div className="text-[15px] font-semibold tracking-[-0.02em]">Activity</div>
-          <span className="text-[12px] text-white/40">Last 7 days</span>
+      <div className="relative z-[2] flex h-full flex-col p-5 pb-5">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="text-[15px] font-semibold tracking-[-0.02em]">Activity</div>
+            <span className="text-[12px] text-white/40">Last 7 days</span>
+          </div>
+          <span
+            className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            style={{ color: tone.color, background: tone.bg }}
+          >
+            {tone.label}
+          </span>
         </div>
         <div className="mt-2 text-[28px] font-extralight tracking-[-0.04em] leading-none tabular-nums">
           {activity.avgTxPerDay}
@@ -592,9 +687,9 @@ function ActivityCard({
           {activity.lastActive}
         </div>
 
-        <div className="mt-auto flex items-end gap-1.5 pt-3" style={{ height: 88 }}>
+        <div className="mt-auto flex items-end gap-1.5 pt-4" style={{ height: 72 }}>
           {vals.map((v, i) => {
-            const h = Math.max(10, (v / max) * 64)
+            const h = Math.max(10, (v / max) * 56)
             const isLast = i === vals.length - 1
             return (
               <div key={i} className="flex flex-1 flex-col items-center gap-1">
@@ -614,6 +709,10 @@ function ActivityCard({
             )
           })}
         </div>
+
+        {open ? (
+          <p className="mt-4 text-[12px] leading-relaxed text-white/65">{explain}</p>
+        ) : null}
       </div>
     </CardShell>
   )
@@ -627,16 +726,50 @@ function FlowCard({
   className?: string
 }) {
   const { activity } = report
-  const outboundHeavy = activity.outboundShare >= 70
+  const [open, setOpen] = React.useState(false)
+  const level: RiskLevel =
+    activity.outboundShare >= 70
+      ? 'danger'
+      : activity.outboundShare >= 55
+        ? 'caution'
+        : 'safe'
+  const tone = concernTone(level, 'Possibly outbound-heavy')
+  const outboundHeavy = level !== 'safe'
+  const explain =
+    level === 'danger'
+      ? `Outbound is ${activity.outboundShare}% of recent flow versus ${activity.inboundShare}% inbound. Wallets that mostly push funds out (with little coming in) often match drain or pass-through scam patterns — be careful before you add more.`
+      : level === 'caution'
+        ? `Outbound (${activity.outboundShare}%) outweighs inbound (${activity.inboundShare}%). That can be normal for a business or exchange, but for an unknown personal address it is a reason to double-check.`
+        : `Inbound and outbound are roughly balanced (${activity.inboundShare}% / ${activity.outboundShare}%). Fund flow alone does not look sketchy here.`
+
   return (
     <CardShell
+      as="button"
+      type="button"
+      onClick={() => setOpen((v) => !v)}
+      aria-expanded={open}
       variant="raised"
-      className={cn('flex min-h-[180px] w-full flex-1 flex-col', className)}
+      className={cn(
+        'flex h-full min-h-[158px] w-full cursor-pointer flex-col text-left transition hover:brightness-110',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8b5cf6]',
+        open && 'overflow-visible ring-1 ring-[#8b5cf6]/40',
+        className,
+      )}
     >
-      <div className="relative z-[2] flex h-full flex-col p-5">
-        <div className="text-[15px] font-semibold tracking-[-0.02em]">Fund flow</div>
-        <div className="mt-0.5 text-[12px] text-white/40">Inbound vs outbound</div>
-        <div className="mt-auto space-y-4 pb-1">
+      <div className="relative z-[2] flex h-full flex-col p-5 pb-5">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="text-[15px] font-semibold tracking-[-0.02em]">Fund flow</div>
+            <div className="mt-0.5 text-[12px] text-white/40">Inbound vs outbound</div>
+          </div>
+          <span
+            className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            style={{ color: tone.color, background: tone.bg }}
+          >
+            {tone.label}
+          </span>
+        </div>
+        <div className="mt-auto space-y-4 pt-4">
           {(
             [
               ['Inbound', activity.inboundShare, '#fff'],
@@ -661,6 +794,10 @@ function FlowCard({
             </div>
           ))}
         </div>
+
+        {open ? (
+          <p className="mt-4 text-[12px] leading-relaxed text-white/65">{explain}</p>
+        ) : null}
       </div>
     </CardShell>
   )
@@ -698,7 +835,7 @@ export function SafetyBento({
   const showHero = section === 'overview' || section === 'lookup'
   const showAccount = section === 'overview' || section === 'lookup'
   const showSignals = section === 'overview' || section === 'signals'
-  const showReputation = section === 'overview' || section === 'reputation'
+  const showScam = section === 'overview' || section === 'scam'
   const showActivity = section === 'overview' || section === 'activity'
   const showSearchBar =
     !embedded || section === 'overview' || section === 'lookup'
@@ -718,7 +855,7 @@ export function SafetyBento({
               </h1>
               <p className="mt-2 text-[13px] text-white/40">
                 {report.source === 'search'
-                  ? 'Manual address lookup · no holder name'
+                  ? 'Manual address lookup · clear-signed names hidden for privacy'
                   : subtitle}
               </p>
             </div>
@@ -769,14 +906,27 @@ export function SafetyBento({
               ) : null}
             </div>
 
-            {/* Wide reputation + tall activity rail */}
-            <div className="grid grid-cols-12 items-stretch gap-4 sm:gap-5">
-              <div className="col-span-12 flex flex-col gap-4 sm:gap-5 lg:col-span-8">
-                {showReputation ? (
-                  <ReputationCard hits={report.blacklists} className="flex-1" />
+            {/* Row 1: scam check | activity — equal height */}
+            {(showScam || showActivity) && (
+              <div className="grid grid-cols-12 items-stretch gap-4 sm:gap-5">
+                {showScam ? (
+                  <div className="col-span-12 lg:col-span-8">
+                    <ScamCheckCard hits={report.blacklists} />
+                  </div>
                 ) : null}
+                {showActivity ? (
+                  <div className="col-span-12 lg:col-span-4">
+                    <ActivityCard report={report} />
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {/* Row 2: velocity + familiarity | fund flow — bottoms align */}
+            {(showSignals && ranked.length > 4) || showActivity ? (
+              <div className="grid grid-cols-12 items-stretch gap-4 sm:gap-5">
                 {showSignals && ranked.length > 4 ? (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+                  <div className="col-span-12 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:col-span-8">
                     {ranked.slice(4).map((signal, index) => (
                       <SignalTile
                         key={signal.id}
@@ -788,18 +938,18 @@ export function SafetyBento({
                             id === signal.id ? null : signal.id,
                           )
                         }
+                        className="h-full"
                       />
                     ))}
                   </div>
                 ) : null}
+                {showActivity ? (
+                  <div className="col-span-12 lg:col-span-4">
+                    <FlowCard report={report} />
+                  </div>
+                ) : null}
               </div>
-              {showActivity ? (
-                <div className="col-span-12 flex min-h-[420px] flex-col gap-4 sm:gap-5 lg:col-span-4">
-                  <ActivityCard report={report} />
-                  <FlowCard report={report} />
-                </div>
-              ) : null}
-            </div>
+            ) : null}
           </div>
         ) : (
           <div className="flex flex-col gap-4 sm:gap-5">
@@ -821,9 +971,7 @@ export function SafetyBento({
               </div>
             ) : null}
 
-            {showReputation ? (
-              <ReputationCard hits={report.blacklists} />
-            ) : null}
+            {showScam ? <ScamCheckCard hits={report.blacklists} /> : null}
 
             {showActivity ? (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
