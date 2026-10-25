@@ -6,10 +6,26 @@ import { evaluateRules, parseAmount } from './rules.js';
 import { XrplAnalyticsService } from './xrpl.js';
 import { interpretWithJev } from './jev.js';
 import { discoverXrpAccounts, dryRunXrpPayment, proposalAnalysisInput, sendXrpPayment, xrpPaymentProposalSchema } from './ledger-wallet.js';
+import { decodeQrPayment, qrTransactionSchema } from './qr-transaction.js';
 
 const app=express();
 app.use(express.json({limit:'32kb'}));
 const xrpl=new XrplAnalyticsService();
+const allowedOrigins = new Set((process.env.CORS_ALLOWED_ORIGINS ?? '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 const serviceInfo = {
   service: 'IntentPay transaction intelligence',
   routes: {
@@ -17,6 +33,7 @@ const serviceInfo = {
     analyzeTransaction: 'POST /analyze-transaction',
     xrpDiscovery: 'POST /ledger/xrp/discover',
     xrpReview: 'POST /ledger/xrp/review',
+    xrpQrReview: 'POST /ledger/xrp/qr-review',
     xrpDryRun: 'POST /ledger/xrp/dry-run',
     xrpSend: 'POST /ledger/xrp/send',
   },
@@ -76,6 +93,52 @@ app.post('/ledger/xrp/review', async (req, res) => {
   } catch (error) {
     const detail = error instanceof Error ? error.message : 'Unknown XRPL service error';
     res.status(502).json({ error: 'XRP Testnet review could not complete', requestId, detail });
+  }
+});
+app.post('/ledger/xrp/qr-review', async (req, res) => {
+  const parsed = qrTransactionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid QR transaction request', details: parsed.error.issues });
+
+  let decoded;
+  try {
+    decoded = decodeQrPayment(parsed.data);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'Invalid QR transaction';
+    return res.status(400).json({ error: detail });
+  }
+
+  const requestId = randomUUID();
+  try {
+    const input = proposalAnalysisInput(decoded.proposal);
+    const metrics = await xrpl.analyze(input);
+    const rules = evaluateRules(input, metrics);
+    let jev = null;
+    let jevError: string | undefined;
+    try {
+      jev = await interpretWithJev({ metrics, intent: input.intent, rules });
+    } catch {
+      jevError = 'Jev advisory service unavailable';
+    }
+    const decision = rules.status === 'BLOCK' ? 'BLOCKED'
+      : rules.status === 'INSUFFICIENT_DATA' ? 'INSUFFICIENT_DATA'
+      : !jev || jev.requiresReview ? 'HUMAN_REVIEW' : 'ELIGIBLE_FOR_SIGNING';
+    res.json({
+      requestId,
+      network: 'xrp:testnet',
+      qrCode: decoded.code,
+      proposal: decoded.proposal,
+      transaction: decoded.transaction,
+      metrics,
+      rules,
+      jev,
+      jevError,
+      decision,
+      xrplDataSource: process.env.XRPL_WS_URL ?? 'wss://s.altnet.rippletest.net:51233',
+      disclaimer: 'QR data is an unsigned proposal. Jev is advisory; this endpoint does not sign or broadcast.',
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'Unknown XRPL service error';
+    res.status(502).json({ error: 'QR transaction review could not complete', requestId, detail });
   }
 });
 app.post('/ledger/xrp/send', async (req, res) => {

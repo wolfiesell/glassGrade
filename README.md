@@ -81,4 +81,10 @@ npm run build
 
 To use the dashboard, run `npm run dev` for the API and `npm run dev:frontend` in a second terminal, then open `http://127.0.0.1:5173`. It opens on **XRPL review**, which uses the live API; choose **Load Testnet sample**, then **Review with Jev** or **Analyze transaction**. Enter both budget values to run deterministic budget checks; without a supplied budget, rules intentionally return `INSUFFICIENT_DATA`. The **Live data** tab shows metrics from the last successful review in that browser session. Jev requests may be billable. XRPL history pagination is reported as incomplete, not treated as clean history. The sample overview, signals, reputation, activity, and address lookup are explicitly labeled demo data and are not live API results. Vite proxies API routes to `http://127.0.0.1:3000`.
 
+## QR verification and Vercel frontend
+
+The QR URL should target `/verify.html#tx=<serialized-unsigned-xrpl-transaction>&net=testnet&code=A018`. The page sends that payload to `POST /ledger/xrp/qr-review`, which accepts unsigned native XRP `Payment` proposals only, decodes them on the backend, and returns XRPL metrics and a Jev advisory. This flow does not sign or broadcast. The full hexadecimal `tx` value is required.
+
+Vercel hosts only the static frontend. Keep the Express API on a Tailscale-connected machine that can reach Speculos, expose the API to the tailnet over HTTPS, set Vercel's `VITE_API_BASE_URL` to that API URL, and set the backend's `CORS_ALLOWED_ORIGINS` to the exact Vercel site origin. The device/browser opening the QR must also be connected to the tailnet. Do not publish the wallet CLI API to the public internet.
+
 The unit tests cover XRP drop conversion, missing data, required fields, duplicate identifiers, recipient mismatch, and budget enforcement. The `jev:sample` command reports the measured inference time for a real SDK request; no latency target is promised.

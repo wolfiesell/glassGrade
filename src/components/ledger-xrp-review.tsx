@@ -201,7 +201,7 @@ export function LedgerXrpReview({ onLiveResult }: { onLiveResult?: (result: unkn
   )
 }
 
-function LiveResult({ result }: { result: unknown }) {
+export function LiveResult({ result }: { result: unknown }) {
   const response = typeof result === 'object' && result !== null ? result as LiveDecision : null
   const hasDecision = Boolean(response?.decision || response?.rules || response?.metrics || response?.jev)
 

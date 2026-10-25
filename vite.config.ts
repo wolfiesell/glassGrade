@@ -8,6 +8,14 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(rootDir, 'index.html'),
+        verify: path.resolve(rootDir, 'verify.html'),
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': 'http://127.0.0.1:3000',

@@ -8,6 +8,8 @@ export type XrpPaymentProposal = {
   budget?: { limit: number; spent: number; currency: 'XRP' }
 }
 
+export type QrTransactionRequest = { tx: string; net: 'testnet'; code?: string }
+
 const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -41,6 +43,7 @@ export const api = {
   serviceInfo: () => request<{ service: string; routes: Record<string, string> }>('/api/info'),
   discoverXrpAccounts: () => post<{ status: string; accounts: unknown; dataSource: string }>('/ledger/xrp/discover', {}),
   reviewXrpPayment: (proposal: XrpPaymentProposal) => post('/ledger/xrp/review', proposal),
+  reviewQrTransaction: (request: QrTransactionRequest) => post('/ledger/xrp/qr-review', request),
   dryRunXrpPayment: (proposal: XrpPaymentProposal) => post('/ledger/xrp/dry-run', proposal),
   sendXrpPayment: (proposal: XrpPaymentProposal) => post('/ledger/xrp/send', proposal),
   analyzeTransaction: (proposal: XrpPaymentProposal) => post('/analyze-transaction', {
