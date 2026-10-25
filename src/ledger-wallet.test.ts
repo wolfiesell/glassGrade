@@ -13,6 +13,8 @@ const proposal = {
 
 test('validates only native XRP Testnet proposals', () => {
   assert.equal(xrpPaymentProposalSchema.safeParse(proposal).success, true);
+  assert.equal(xrpPaymentProposalSchema.safeParse({ ...proposal, budget: { limit: 20, spent: 5 } }).success, true);
+  assert.equal(xrpPaymentProposalSchema.safeParse({ ...proposal, budget: { limit: 0, spent: 5 } }).success, false);
   assert.equal(xrpPaymentProposalSchema.safeParse({ ...proposal, network: 'xrp:mainnet' }).success, false);
   assert.equal(xrpPaymentProposalSchema.safeParse({ ...proposal, amount: '1.1234567' }).success, false);
   assert.equal(xrpPaymentProposalSchema.safeParse({ ...proposal, destinationTag: 4_294_967_296 }).success, false);
@@ -26,6 +28,15 @@ test('converts XRP decimals to exact drops for analysis', () => {
     destination: proposal.recipient,
     amount: '1250000',
     requiredFields: [],
+  });
+});
+
+test('passes caller-supplied XRP budget to review rules', () => {
+  const withBudget = xrpPaymentProposalSchema.parse({ ...proposal, budget: { limit: 20, spent: 5 } });
+  assert.deepEqual(proposalAnalysisInput(withBudget).budget, {
+    limit: 20,
+    spent: 5,
+    currency: 'XRP',
   });
 });
 

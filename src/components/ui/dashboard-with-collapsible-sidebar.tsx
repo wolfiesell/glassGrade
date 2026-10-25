@@ -12,9 +12,10 @@ import {
 import { cn } from '@/lib/utils'
 import { SafetyBento, type SafetySection } from '@/components/ui/safety-bento'
 import { CrystalBallBackground } from '@/components/crystal-ball-background'
-import { mockReport, type RecipientReport } from '@/data/mockRecipient'
+import { mockReport } from '@/data/mockRecipient'
+import { LedgerXrpReview, LiveXrplDashboard } from '@/components/ledger-xrp-review'
 
-type NavId = SafetySection
+type NavId = SafetySection | 'review' | 'live'
 
 const NAV: {
   id: NavId
@@ -22,11 +23,13 @@ const NAV: {
   Icon: React.ComponentType<{ className?: string }>
   notifs?: number
 }[] = [
-  { id: 'overview', title: 'Overview', Icon: Home },
-  { id: 'signals', title: 'Signals', Icon: ShieldAlert, notifs: 4 },
-  { id: 'reputation', title: 'Reputation', Icon: ListChecks, notifs: 1 },
-  { id: 'activity', title: 'Activity', Icon: Activity },
-  { id: 'lookup', title: 'Lookup', Icon: Search },
+  { id: 'overview', title: 'Sample overview', Icon: Home },
+  { id: 'signals', title: 'Sample signals', Icon: ShieldAlert, notifs: 4 },
+  { id: 'reputation', title: 'Sample reputation', Icon: ListChecks, notifs: 1 },
+  { id: 'activity', title: 'Sample activity', Icon: Activity },
+  { id: 'lookup', title: 'Sample lookup', Icon: Search },
+  { id: 'live', title: 'Live data', Icon: Activity },
+  { id: 'review', title: 'XRPL review', Icon: ShieldAlert },
 ]
 
 function Option({
@@ -153,49 +156,57 @@ function Sidebar({
   )
 }
 
-function sectionCopy(section: NavId, report: RecipientReport) {
+function sectionCopy(section: NavId) {
   switch (section) {
     case 'signals':
       return {
-        title: 'Risk signals',
-        subtitle: 'Ranked by how strongly they indicate a scam or unsafe destination',
+        title: 'Sample risk signals',
+        subtitle: 'Demonstration data · not returned by the live API',
       }
     case 'reputation':
       return {
-        title: 'Reputation',
-        subtitle: 'Public deny-list checks for this address',
+        title: 'Sample reputation',
+        subtitle: 'Demonstration data · not returned by the live API',
       }
     case 'activity':
       return {
-        title: 'On-ledger activity',
-        subtitle: 'Velocity and inbound / outbound flow',
+        title: 'Sample activity',
+        subtitle: 'Demonstration data · not returned by the live API',
       }
     case 'lookup':
       return {
-        title: 'Address lookup',
-        subtitle: 'Search any XRPL address — holder names are never shown',
+        title: 'Sample address lookup',
+        subtitle: 'Generated demo results · not a live XRPL lookup',
+      }
+    case 'review':
+      return {
+        title: 'XRPL Testnet review',
+        subtitle: 'Connect Ledger Wallet CLI, XRPL history, deterministic checks, and Jev advisory',
+      }
+    case 'live':
+      return {
+        title: 'Live XRPL data',
+        subtitle: 'Metrics from your latest successful Testnet review',
       }
     default:
       return {
-        title: 'Safety overview',
-        subtitle:
-          report.source === 'search'
-            ? 'Manual address lookup · no holder name'
-            : 'Opened from Ledger · XRPL clear-sign review',
+        title: 'Sample safety overview',
+        subtitle: 'Demonstration report · not connected to live XRPL data',
       }
   }
 }
 
 export function GlassGradeDashboard() {
   const [sidebarOpen, setSidebarOpen] = React.useState(true)
-  const [selected, setSelected] = React.useState<NavId>('overview')
+  const [selected, setSelected] = React.useState<NavId>('review')
   const [report, setReport] = React.useState(mockReport)
+  const [liveResult, setLiveResult] = React.useState<unknown>(null)
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const wheelRef = React.useRef<HTMLDivElement>(null)
   const rafRef = React.useRef(0)
 
   const dangerCount = report.signals.filter((s) => s.level === 'danger').length
-  const copy = sectionCopy(selected, report)
+  const copy = sectionCopy(selected)
 
   React.useEffect(() => {
     let running = true
@@ -239,13 +250,19 @@ export function GlassGradeDashboard() {
             </h1>
             <p className="mt-0.5 text-sm text-white/40">{copy.subtitle}</p>
           </div>
-          <div className="hidden rounded-full border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 font-mono text-[11px] font-semibold text-[#a78bfa] backdrop-blur-md sm:block">
-            Grade {report.grade} · {report.overallScore}/100
-          </div>
+          {selected === 'review' ? null : (
+            <div className="hidden rounded-full border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 font-mono text-[11px] font-semibold text-[#a78bfa] backdrop-blur-md sm:block">
+              Demo grade {report.grade} · {report.overallScore}/100
+            </div>
+          )}
         </header>
 
         <main className="flex-1 p-6 pb-48 sm:p-8 sm:pb-56">
-          <div
+          {selected === 'review' ? (
+            <LedgerXrpReview onLiveResult={setLiveResult} />
+          ) : selected === 'live' ? (
+            <LiveXrplDashboard result={liveResult} onOpenReview={() => setSelected('review')} />
+          ) : <div
             ref={wheelRef}
             className="gg-wheel mx-auto w-full max-w-[1200px]"
             style={{ transformOrigin: '50% 0%' }}
@@ -257,7 +274,7 @@ export function GlassGradeDashboard() {
               embedded
               className="w-full"
             />
-          </div>
+          </div>}
         </main>
       </div>
     </div>

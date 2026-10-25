@@ -16,6 +16,11 @@ export const xrpPaymentProposalSchema = z.object({
   recipient: classicAddress,
   amount: xrpAmount,
   destinationTag: z.number().int().min(0).max(4_294_967_295).optional(),
+  budget: z.object({
+    limit: z.number().positive(),
+    spent: z.number().nonnegative(),
+    currency: z.literal('XRP').optional(),
+  }).optional(),
 });
 
 export type XrpPaymentProposal = z.infer<typeof xrpPaymentProposalSchema>;
@@ -77,6 +82,7 @@ export function proposalAnalysisInput(proposal: XrpPaymentProposal) {
       destination: proposal.recipient,
       amount: xrpAmountToDrops(proposal.amount),
     },
+    ...(proposal.budget ? { budget: { ...proposal.budget, currency: 'XRP' as const } } : {}),
   };
 }
 

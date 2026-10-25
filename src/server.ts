@@ -10,18 +10,20 @@ import { discoverXrpAccounts, dryRunXrpPayment, proposalAnalysisInput, sendXrpPa
 const app=express();
 app.use(express.json({limit:'32kb'}));
 const xrpl=new XrplAnalyticsService();
-app.get('/', (_req, res) => res.json({
+const serviceInfo = {
   service: 'IntentPay transaction intelligence',
-  status: 'ok',
   routes: {
     health: 'GET /health',
+    analyzeTransaction: 'POST /analyze-transaction',
     xrpDiscovery: 'POST /ledger/xrp/discover',
     xrpReview: 'POST /ledger/xrp/review',
     xrpDryRun: 'POST /ledger/xrp/dry-run',
     xrpSend: 'POST /ledger/xrp/send',
   },
   mode: 'XRPL Testnet only; Ledger signing requires the local Wallet CLI and physical device approval',
-}));
+};
+app.get('/', (_req, res) => res.json({ ...serviceInfo, status: 'ok' }));
+app.get('/api/info', (_req, res) => res.json(serviceInfo));
 app.get('/health',(_req,res)=>res.json({status:'ok'}));
 app.post('/ledger/xrp/discover', async (_req, res) => {
   try {

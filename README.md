@@ -47,8 +47,17 @@ The service reads validated `account_tx` history for the sender and recipient fr
 
 ## Ledger Wallet CLI connector
 
-The local connector runs the configured Ledger Wallet CLI executable (by default
+The connector runs the configured Ledger Wallet CLI executable (by default
 `C:\Users\HEET\ledger-live\apps\wallet-cli\dist\windows-x64\cli.exe`) directly with shell execution disabled. It does not copy Ledger Live code, handle recovery phrases, or access private keys. The executable must be built separately; a missing executable is reported as an error.
+
+The CLI runs on the backend host and inherits that host's `SPECULOS_ADDRESS` and `SPECULOS_API_PORT` environment variables. Defaults are `127.0.0.1` and `5000`. For a Speculos emulator in a friend's Docker container, the backend host must be able to reach the friend's Docker host on its published Speculos API port:
+
+1. Connect both computers to a private Tailscale network (or an equivalent private VPN). Do not expose Speculos port 5000 to the public internet; restrict access with the VPN ACL and the friend's host firewall so only the backend host can reach it.
+2. On the friend's computer, publish the Speculos API port from the container to the host (commonly container port 5000 to host port 5000). Their Docker setup must bind the API to an interface reachable from the VPN, not only to container-local localhost.
+3. On the computer running this project's backend, set `SPECULOS_ADDRESS` to the friend's Tailscale IP or private DNS name and `SPECULOS_API_PORT` to the Docker host port. Do not include `http://` in the address. Restart `npm run dev` after changing `.env`.
+4. From the backend computer, verify `Test-NetConnection <friend-tailscale-ip> -Port 5000` succeeds, then use **Discover Ledger accounts** in the UI. If discovery succeeds, use the returned account label for dry-run/send.
+
+`POST /ledger/xrp/review` does not contact Speculos: it gets XRPL history and a separate Jev advisory. Discovery, dry-run, and send call the Wallet CLI and therefore need the Speculos tunnel. Dry-run does not broadcast. Send may broadcast on Testnet after the emulator/device approves.
 
 The connector is Testnet-only:
 
@@ -69,5 +78,7 @@ Application records and budget are caller supplied and are not persisted. An XRP
 npm test
 npm run build
 ```
+
+To use the dashboard, run `npm run dev` for the API and `npm run dev:frontend` in a second terminal, then open `http://127.0.0.1:5173`. It opens on **XRPL review**, which uses the live API; choose **Load Testnet sample**, then **Review with Jev** or **Analyze transaction**. Enter both budget values to run deterministic budget checks; without a supplied budget, rules intentionally return `INSUFFICIENT_DATA`. The **Live data** tab shows metrics from the last successful review in that browser session. Jev requests may be billable. XRPL history pagination is reported as incomplete, not treated as clean history. The sample overview, signals, reputation, activity, and address lookup are explicitly labeled demo data and are not live API results. Vite proxies API routes to `http://127.0.0.1:3000`.
 
 The unit tests cover XRP drop conversion, missing data, required fields, duplicate identifiers, recipient mismatch, and budget enforcement. The `jev:sample` command reports the measured inference time for a real SDK request; no latency target is promised.
